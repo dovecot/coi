@@ -1,0 +1,5 @@
+/* Define to the full name of Dovecot Chat over IMAP. */
+#undef COI_NAME
+
+/* Define to the version of Dovecot Chat over IMAP. */
+#undef COI_VERSION
