@@ -32,6 +32,7 @@ AC_CONFIG_FILES([
 Makefile
 src/Makefile
 src/plugins/Makefile
+src/plugins/imap-coi/Makefile
 src/plugins/submission-coi/Makefile
 stamp.h])
 

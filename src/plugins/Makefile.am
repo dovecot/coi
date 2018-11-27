@@ -1,1 +1,3 @@
-SUBDIRS = submission-coi
+SUBDIRS = \
+	imap-coi \
+	submission-coi
