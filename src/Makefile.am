@@ -1,1 +1,1 @@
-SUBDIRS = plugins
+SUBDIRS = lib-coi plugins

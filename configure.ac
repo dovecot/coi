@@ -31,6 +31,7 @@ AC_SUBST(LIBDOVECOT_INCLUDE)
 AC_CONFIG_FILES([
 Makefile
 src/Makefile
+src/lib-coi/Makefile
 src/plugins/Makefile
 src/plugins/imap-coi/Makefile
 src/plugins/lmtp-coi/Makefile
