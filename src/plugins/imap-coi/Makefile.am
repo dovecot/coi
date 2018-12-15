@@ -1,4 +1,5 @@
 AM_CPPFLAGS = \
+	-I$(top_srcdir)/src/lib-coi \
 	$(LIBDOVECOT_INCLUDE) \
 	$(LIBDOVECOT_STORAGE_INCLUDE) \
 	$(LIBDOVECOT_IMAP_INCLUDE)
