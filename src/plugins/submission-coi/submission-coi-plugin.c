@@ -10,6 +10,8 @@
 #include "submission-backend-relay.h"
 #include "submission-coi-plugin.h"
 
+#include "coi-common.h"
+
 #define LMTP_SOCKET_NAME "lmtp"
 
 #define SUBMISSION_COI_CONTEXT(obj) \
@@ -61,6 +63,8 @@ struct submission_coi_client {
 	struct submission_coi_backend *backends;
 	struct submission_coi_backend *lmtp_backend;
 
+	struct coi_context *coi_ctx;
+
 	struct {
 		struct submission_coi_recipient *rcpts;
 
@@ -97,7 +101,7 @@ submission_coi_client_destroy(struct client *client, const char *prefix,
 {
 	struct submission_coi_client *scclient = SUBMISSION_COI_CONTEXT(client);
 
-	// FIXME
+	coi_context_deinit(&scclient->coi_ctx);
 
 	scclient->super.destroy(client, prefix, reason);
 }
@@ -490,6 +494,85 @@ submission_coi_client_cmd_rcpt(struct client *client,
 	return scclient->super.cmd_rcpt(client, cmd, srcpt);
 }
 
+static void
+submission_coi_client_store_chat(struct submission_coi_client *scclient,
+				 struct smtp_server_transaction *trans,
+				 struct coi_context *coi_ctx,
+				 struct coi_raw_mail *coi_mail)
+{
+	enum mailbox_transaction_flags trans_flags;
+	struct mailbox_transaction_context *mtrans;
+	struct mail_save_context *save_ctx;
+	struct mailbox *box;
+	struct mail_storage *storage;
+	const char *header;
+	int ret = 0;
+
+	if (scclient->trans_state.rcpts == NULL &&
+	    mail_get_first_header(coi_mail->mail, COI_MSGHDR_CHAT,
+				  &header) <= 0) {
+		/* Not a chat message or it is somehow not possible to
+		   determine whether it is one. */
+		return;
+	}
+
+	if (coi_mailbox_chats_open(coi_ctx, MAILBOX_FLAG_SAVEONLY |
+					    MAILBOX_FLAG_POST_SESSION,
+				   &box, &storage) < 0)
+		return;
+
+	trans_flags = MAILBOX_TRANSACTION_FLAG_EXTERNAL;
+	mtrans = mailbox_transaction_begin(box, trans_flags, __func__);
+	save_ctx = mailbox_save_alloc(mtrans);
+	if (trans->mail_from != NULL) {
+		mailbox_save_set_from_envelope(save_ctx,
+			smtp_address_encode(trans->mail_from));
+	}
+
+	if (mailbox_save_using_mail(&save_ctx, coi_mail->mail) < 0)
+		ret = -1;
+
+	if (ret < 0)
+		mailbox_transaction_rollback(&mtrans);
+	else
+		ret = mailbox_transaction_commit(&mtrans);
+
+	if (ret < 0) {
+		i_info("COI: Failed to save message to chats mailbox `%s': %s",
+		       mailbox_get_vname(box),
+		       mail_storage_get_last_internal_error(storage, NULL));
+	} else {
+		i_info("COI: Saved message to chats mailbox `%s'",
+		       mailbox_get_vname(box));
+	}
+
+	mailbox_free(&box);
+}
+
+static int
+submission_coi_client_cmd_data(struct client *client,
+			       struct smtp_server_cmd_ctx *cmd,
+			       struct smtp_server_transaction *trans,
+			       struct istream *data_input, uoff_t data_size)
+{
+	struct submission_coi_client *scclient = SUBMISSION_COI_CONTEXT(client);
+	struct coi_raw_mail *coi_mail;
+
+	/* Make sure data input stream is at the beginning (other plugins may
+	   have messed with it. */
+	i_stream_seek(data_input, 0);
+
+	if (coi_raw_mail_open(scclient->coi_ctx, trans->mail_from,
+			      data_input, &coi_mail) == 0) {
+		submission_coi_client_store_chat(scclient, trans,
+						 scclient->coi_ctx, coi_mail);
+		coi_raw_mail_close(&coi_mail);
+	}
+
+	return scclient->super.cmd_data(client, cmd, trans,
+					data_input, data_size);
+}
+
 static void submission_coi_client_create(struct client *client)
 {
 	struct submission_coi_client *scclient;
@@ -507,6 +590,9 @@ static void submission_coi_client_create(struct client *client)
 	client->v.trans_free = submission_coi_client_trans_free;
 	client->v.cmd_mail = submission_coi_client_cmd_mail;
 	client->v.cmd_rcpt = submission_coi_client_cmd_rcpt;
+	client->v.cmd_data = submission_coi_client_cmd_data;
+
+	scclient->coi_ctx = coi_context_init(client->user);
 
 	client_add_extra_capability(client, "SYNC", NULL); // FIXME: better name for this capability
 	client_add_extra_capability(client, "COI", NULL); // FIXME: better name for this protocol
