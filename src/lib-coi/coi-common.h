@@ -20,6 +20,12 @@
 #define COI_MAILBOX_CONTACTS "Contacts"
 
 /*
+ * Plugin settings
+ */
+
+#define COI_SETTING_MAILBOX_ROOT "coi_mailbox_root"
+
+/*
  * COI context
  */
 
@@ -28,5 +34,7 @@ struct coi_context;
 struct coi_context *
 coi_context_init(struct mail_user *user) ATTR_NULL(2);
 void coi_context_deinit(struct coi_context **_coi_ctx);
+
+const char *coi_get_mailbox_root(struct coi_context *coi_ctx);
 
 #endif
