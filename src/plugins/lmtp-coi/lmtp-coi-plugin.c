@@ -157,8 +157,9 @@ lmtp_coi_client_cmd_rcpt(struct client *client,
 static int
 lmtp_coi_client_local_deliver(struct client *client,
 			      struct lmtp_recipient *lrcpt,
-			      struct mail_deliver_context *dctx,
-			      struct mail_storage **storage_r)
+			      struct smtp_server_cmd_ctx *cmd,
+			      struct smtp_server_transaction *trans,
+			      struct lmtp_local_deliver_context *lldctx)
 {
 	struct lmtp_coi_client *lcclient = LMTP_COI_CONTEXT(client);
 	struct lmtp_coi_recipient *lcrcpt = LMTP_COI_RCPT_CONTEXT(lrcpt);
@@ -172,7 +173,7 @@ lmtp_coi_client_local_deliver(struct client *client,
 		// FIXME: do COI magic stuff
 	}
 
-	return lcclient->super.local_deliver(client, lrcpt, dctx, storage_r);
+	return lcclient->super.local_deliver(client, lrcpt, cmd, trans, lldctx);
 }
 
 static void lmtp_coi_client_create(struct client *client)
