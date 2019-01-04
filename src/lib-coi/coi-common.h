@@ -45,4 +45,21 @@ int coi_mailbox_chats_open(struct coi_context *coi_ctx,
 			   enum mailbox_flags flags, struct mailbox **box_r,
 			   struct mail_storage **storage_r);
 
+/*
+ * Raw mail
+ */
+
+struct coi_raw_mail {
+	struct mail *mail;
+
+	struct mailbox *box;
+	struct mailbox_transaction_context *trans;
+};
+
+int coi_raw_mail_open(struct coi_context *coi_ctx,
+		      const struct smtp_address *mail_from,
+		      struct istream *msg_input,
+		      struct coi_raw_mail **coi_mail_r);
+void coi_raw_mail_close(struct coi_raw_mail **_coi_mail);
+
 #endif
