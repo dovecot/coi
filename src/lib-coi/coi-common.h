@@ -37,4 +37,12 @@ void coi_context_deinit(struct coi_context **_coi_ctx);
 
 const char *coi_get_mailbox_root(struct coi_context *coi_ctx);
 
+/*
+ * Chats mailbox
+ */
+
+int coi_mailbox_chats_open(struct coi_context *coi_ctx,
+			   enum mailbox_flags flags, struct mailbox **box_r,
+			   struct mail_storage **storage_r);
+
 #endif
