@@ -4,7 +4,10 @@
 #include "str.h"
 #include "master-service.h"
 #include "master-service-settings.h"
+#include "message-id.h"
 #include "mail-storage.h"
+#include "mail-search.h"
+#include "mail-search-build.h"
 #include "raw-storage.h"
 #include "smtp-address.h"
 
@@ -119,6 +122,124 @@ int coi_mailbox_chats_open(struct coi_context *coi_ctx,
 	       mail_storage_get_last_internal_error(*storage_r, NULL));
 	mailbox_free(box_r);
 	return -1;
+}
+
+/*
+ * Chat message recognition
+ */
+
+static int
+coi_mailbox_chats_has_reference(struct coi_context *coi_ctx,
+				const char *const *msgids)
+{
+	struct mail_storage *storage;
+	struct mailbox *box;
+	struct mailbox_transaction_context *mtrans;
+	struct mail_search_args *search_args;
+	struct mail_search_arg *or_arg, **subargs;
+	const char *const *msgidp;
+	struct mail_search_context *search_ctx;
+	struct mail *mail;
+	int ret = 0;
+
+	if (*msgids == NULL)
+		return 0;
+
+	if (coi_mailbox_chats_open(coi_ctx, 0, &box, &storage) < 0) {
+		// FIXME: error?
+		return -1;
+	}
+
+	mtrans = mailbox_transaction_begin(box, 0, __func__);
+
+	/* Compose search for all message IDs of interest */
+	search_args = mail_search_build_init();
+	msgidp = msgids;
+	if (msgidp[1] == NULL)
+		subargs = &search_args->args;
+	else {
+		or_arg = mail_search_build_add(search_args, SEARCH_OR);
+		subargs = &or_arg->value.subargs;
+	}
+	while (*msgidp != NULL) {
+		struct mail_search_arg *sarg;
+
+		sarg = p_new(search_args->pool, struct mail_search_arg, 1);
+		sarg->type = SEARCH_HEADER;
+
+		sarg->next = *subargs;
+		*subargs = sarg;
+
+		sarg->hdr_field_name = p_strdup(search_args->pool,
+						"Message-ID");
+		sarg->value.str = p_strdup(search_args->pool, *msgidp);
+
+		msgidp++;
+	}
+
+	mail_search_args_init(search_args, box, FALSE, NULL);
+	search_ctx = mailbox_search_init(mtrans, search_args, NULL, 0, NULL);
+	mail_search_args_unref(&search_args);
+
+	while (mailbox_search_next(search_ctx, &mail)) {
+		if (!mail->expunged) {
+			ret = 1;
+			break;
+		}
+	}
+
+	if (mailbox_search_deinit(&search_ctx) < 0)
+		ret = -1;
+	mailbox_transaction_rollback(&mtrans);
+	mailbox_free(&box);
+	return ret;
+}
+
+static void
+coi_mail_header_read_msgids(const char *value, ARRAY_TYPE(const_string) *msgids)
+{
+	const char *id;
+
+	while ((id = message_id_get_next(&value)) != NULL) {
+		const char *const *idp;
+		bool exists = FALSE;
+
+		/* Avoid duplicates */
+		array_foreach(msgids, idp) {
+			if (strcmp(*idp, id) == 0) {
+				exists = TRUE;
+				break;
+			}
+		}
+		if (exists)
+			continue;
+
+		id = t_strdup(id);
+		array_append(msgids, &id, 1);
+	}
+}
+
+int coi_mail_is_chat_related(struct coi_context *coi_ctx, struct mail *mail)
+{
+	ARRAY_TYPE(const_string) msgids;
+	const char *header = NULL;
+
+	t_array_init(&msgids, 64);
+
+	/* In-Reply-To: */
+	if (mail_get_first_header(mail, "in-reply-to", &header) < 0 &&
+	    !mail->expunged)
+		return -1;
+	coi_mail_header_read_msgids(header, &msgids);
+
+	/* References: */
+	if (mail_get_first_header(mail, "references", &header) < 0 &&
+	    !mail->expunged)
+		return -1;
+	coi_mail_header_read_msgids(header, &msgids);
+
+	array_append_zero(&msgids);
+	return coi_mailbox_chats_has_reference(coi_ctx, array_idx(&msgids, 0));
 }
 
 /*

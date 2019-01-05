@@ -247,6 +247,12 @@ lmtp_coi_client_local_deliver(struct client *client,
 					 &header) > 0) {
 		/* Message has COI chat header */
 		coi_ctx = coi_context_init(user);
+	} else {
+		coi_ctx = coi_context_init(user);
+		if (coi_mail_is_chat_related(coi_ctx, lldctx->src_mail) <= 0) {
+			/* Message has no references to chat messages */
+			coi_context_deinit(&coi_ctx);
+		}
 	}
 
 	if (coi_ctx != NULL) {

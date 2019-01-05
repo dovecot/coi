@@ -46,6 +46,12 @@ int coi_mailbox_chats_open(struct coi_context *coi_ctx,
 			   struct mail_storage **storage_r);
 
 /*
+ * Chat message recognition
+ */
+
+int coi_mail_is_chat_related(struct coi_context *coi_ctx, struct mail *mail);
+
+/*
  * Raw mail
  */
 
