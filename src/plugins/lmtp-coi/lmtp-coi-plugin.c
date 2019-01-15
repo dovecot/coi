@@ -165,11 +165,11 @@ lmtp_coi_client_local_deliver(struct client *client,
 	struct smtp_server_recipient *rcpt = lrcpt->rcpt;
 
 	if (lcrcpt != NULL) {
-		/* Handle CoI recipient delivery */
-		i_debug("coi: Delivering for CoI recipient `%s'",
+		/* Handle COI recipient delivery */
+		i_debug("coi: Delivering for COI recipient `%s'",
 			smtp_address_encode(rcpt->path));
 
-		// FIXME: do CoI magic stuff
+		// FIXME: do COI magic stuff
 	}
 
 	return lcclient->super.local_deliver(client, lrcpt, dctx, storage_r);

@@ -143,13 +143,13 @@ submission_coi_backend_ready(struct submission_backend *backend,
 	scbackend->have_coi = (cap_sync != NULL && cap_coi != NULL);
 
 	if (scbackend->have_coi) {
-		i_debug("coi: Backend supports CoI");
+		i_debug("coi: Backend supports COI");
 		/* Enable sync behavior for client transaction */
 		(void)submission_backend_relay_init_transaction(
 			scbackend->relay,
 			SMTP_CLIENT_TRANSACTION_FLAG_REPLY_PER_RCPT);
 	} else {
-		i_debug("coi: Backend does not support CoI");
+		i_debug("coi: Backend does not support COI");
 		// FIXME: which should actually be an error
 	}
 
@@ -216,12 +216,12 @@ submission_coi_backend_trans_start(struct submission_backend *backend,
 	}
 
 	if (scbackend->have_coi) {
-		i_debug("coi: Started backend transaction (with CoI)");
+		i_debug("coi: Started backend transaction (with COI)");
 		smtp_params_mail_copy(pool, &new_params, params);
 		smtp_params_mail_add_extra(&new_params, pool, "SYNC", NULL);
 		params = &new_params;
 	} else {
-		i_debug("coi: Started backend transaction (without CoI)");
+		i_debug("coi: Started backend transaction (without COI)");
 	}
 
 	scbackend->super.trans_start(backend, trans, path, params);
@@ -327,7 +327,7 @@ submission_coi_esmtp_backend_init(struct client *client, const char *hostname)
 	relay_set.protocol = SMTP_PROTOCOL_SMTP;
 	relay_set.host = hostname;
 	relay_set.port = 587; // FIXME
-	relay_set.user = "harrie"; // FIXME: some CoI-specific token-based authentication
+	relay_set.user = "harrie"; // FIXME: some COI-specific token-based authentication
 	relay_set.password = "frop";
 	relay_set.max_idle_time = set->submission_relay_max_idle_time;
 	relay_set.connect_timeout_msecs = set->submission_relay_connect_timeout;
