@@ -24,6 +24,7 @@
  */
 
 #define COI_SETTING_MAILBOX_ROOT "coi_mailbox_root"
+#define COI_SETTING_TRUST_MSGID_PREFIX "coi_trust_msgid_prefix"
 
 /*
  * COI context

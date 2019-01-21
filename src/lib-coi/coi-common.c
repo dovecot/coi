@@ -30,6 +30,7 @@ struct coi_context {
 	struct mail_namespace *root_ns;
 
 	const char *chats_box_name;
+	bool coi_trust_msgid_prefix;
 };
 
 struct coi_context *
@@ -45,6 +46,9 @@ coi_context_init(struct mail_user *user)
 	coi_ctx = p_new(pool, struct coi_context, 1);
 	coi_ctx->pool = pool;
 	coi_ctx->user = user;
+
+	coi_ctx->coi_trust_msgid_prefix =
+		mail_user_plugin_getenv_bool(user, COI_SETTING_TRUST_MSGID_PREFIX);
 
 	root_box_name = mail_user_plugin_getenv(user, COI_SETTING_MAILBOX_ROOT);
 	if (root_box_name == NULL) {
@@ -147,6 +151,8 @@ coi_mailbox_chats_has_reference(struct coi_context *coi_ctx,
 
 	if (*msgids == NULL)
 		return 0;
+	if (coi_ctx->coi_trust_msgid_prefix)
+		return 1;
 
 	if (coi_mailbox_chats_open(coi_ctx, 0, &box, &storage) < 0) {
 		// FIXME: error?
