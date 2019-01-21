@@ -13,6 +13,9 @@
 
 #include "coi-common.h"
 
+/* All COI chat messages have Message-ID with this prefix */
+#define COI_CHAT_MSGID_PREFIX "coi|"
+
 /*
  * COI context
  */
@@ -203,6 +206,9 @@ coi_mail_header_read_msgids(const char *value, ARRAY_TYPE(const_string) *msgids)
 	while ((id = message_id_get_next(&value)) != NULL) {
 		const char *const *idp;
 		bool exists = FALSE;
+
+		if (!str_begins(id, COI_CHAT_MSGID_PREFIX))
+			continue;
 
 		/* Avoid duplicates */
 		array_foreach(msgids, idp) {
