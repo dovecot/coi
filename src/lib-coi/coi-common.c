@@ -14,7 +14,7 @@
 #include "coi-common.h"
 
 /* All COI chat messages have Message-ID with this prefix */
-#define COI_CHAT_MSGID_PREFIX "coi|"
+#define COI_CHAT_MSGID_PREFIX "coi$"
 
 /*
  * COI context
