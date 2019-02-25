@@ -19,5 +19,5 @@ libdovecot_coi_la_SOURCES = \
 headers = \
 	coi-common.h
 
-pkginc_libdir=$(pkgincludedir)
+pkginc_libdir=$(dovecot_pkgincludedir)
 pkginc_lib_HEADERS = $(headers)

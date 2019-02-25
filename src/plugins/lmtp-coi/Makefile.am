@@ -4,11 +4,9 @@ AM_CPPFLAGS = \
 	$(LIBDOVECOT_STORAGE_INCLUDE) \
 	$(LIBDOVECOT_LMTP_INCLUDE)
 
-lmtp_moduledir = $(moduledir)
-
 lib11_lmtp_coi_plugin_la_LDFLAGS = -module -avoid-version
 
-lmtp_module_LTLIBRARIES = \
+dovecot_module_LTLIBRARIES = \
 	lib11_lmtp_coi_plugin.la
 
 lib11_lmtp_coi_plugin_la_LIBADD = \
