@@ -91,20 +91,20 @@ const char *coi_get_mailbox_root(struct coi_context *coi_ctx)
  */
 
 static const char *
-coi_mailbox_chats_get_name(struct coi_context *coi_ctx)
+coi_mailbox_get_name(struct coi_context *coi_ctx, const char *base_name)
 {
 	string_t *name;
 
 	name = t_str_new(256);
 	str_append(name, coi_ctx->root_box_name);
 	str_append_c(name, mail_namespace_get_sep(coi_ctx->root_ns));
-	str_append(name, COI_MAILBOX_CHATS);
+	str_append(name, base_name);
 	return str_c(name);
 }
 
-int coi_mailbox_chats_open(struct coi_context *coi_ctx,
-			   enum mailbox_flags flags, struct mailbox **box_r,
-			   struct mail_storage **storage_r)
+static int coi_mailbox_open(struct coi_context *coi_ctx, const char *base_name,
+			    enum mailbox_flags flags, struct mailbox **box_r,
+			    struct mail_storage **storage_r)
 {
 	struct mailbox *box;
 
@@ -112,17 +112,24 @@ int coi_mailbox_chats_open(struct coi_context *coi_ctx,
 
 	flags |= MAILBOX_FLAG_AUTO_CREATE;
 	box = *box_r = mailbox_alloc(coi_ctx->root_ns->list,
-				     coi_mailbox_chats_get_name(coi_ctx),
-				     flags);
+		coi_mailbox_get_name(coi_ctx, base_name), flags);
 	*storage_r = mailbox_get_storage(box);
 	if (mailbox_open(box) == 0)
 		return 0;
 
-	i_info("COI: Failed to open chats mailbox `%s': %s",
+	i_info("COI: Failed to open mailbox `%s': %s",
 	       mailbox_get_vname(box),
 	       mail_storage_get_last_internal_error(*storage_r, NULL));
 	mailbox_free(box_r);
 	return -1;
+}
+
+int coi_mailbox_chats_open(struct coi_context *coi_ctx,
+			   enum mailbox_flags flags, struct mailbox **box_r,
+			   struct mail_storage **storage_r)
+{
+	return coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS,
+				flags, box_r, storage_r);
 }
 
 /*
