@@ -29,7 +29,6 @@ struct coi_context {
 	const char *root_box_name;
 	struct mail_namespace *root_ns;
 
-	const char *chats_box_name;
 	bool coi_trust_msgid_prefix;
 };
 
@@ -96,16 +95,11 @@ coi_mailbox_chats_get_name(struct coi_context *coi_ctx)
 {
 	string_t *name;
 
-	if (coi_ctx->chats_box_name != NULL)
-		return coi_ctx->chats_box_name;
-
 	name = t_str_new(256);
 	str_append(name, coi_ctx->root_box_name);
 	str_append_c(name, mail_namespace_get_sep(coi_ctx->root_ns));
 	str_append(name, COI_MAILBOX_CHATS);
-
-	coi_ctx->chats_box_name = p_strdup(coi_ctx->pool, str_c(name));
-	return coi_ctx->chats_box_name;
+	return str_c(name);
 }
 
 int coi_mailbox_chats_open(struct coi_context *coi_ctx,
