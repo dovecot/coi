@@ -30,7 +30,17 @@
  * COI context
  */
 
-struct coi_context;
+struct coi_context {
+	pool_t pool;
+
+	struct mail_user *user;
+	struct mail_user *raw_mail_user;
+
+	const char *root_box_name;
+	struct mail_namespace *root_ns;
+
+	bool coi_trust_msgid_prefix;
+};
 
 struct coi_context *
 coi_context_init(struct mail_user *user) ATTR_NULL(2);
