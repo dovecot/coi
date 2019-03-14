@@ -7,7 +7,7 @@
  * Message headers
  */
 
-#define COI_MSGHDR_CHAT "X-COI-Chat"
+#define COI_MSGHDR_CHAT "Chat-Version"
 #define COI_MSGHDR_TEMP_TOKEN "X-COI-Temporary-Token"
 
 /*
