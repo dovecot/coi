@@ -3,25 +3,25 @@
 #include "imap-common.h"
 #include "module-context.h"
 #include "coi-common.h"
+#include "mail-storage-private.h"
 #include "imap-feature.h"
 #include "imap-coi-plugin.h"
 
-#define IMAP_COI_CONTEXT(obj) \
-	MODULE_CONTEXT(obj, imap_coi_client_module)
+#define IMAP_COI_USER_CONTEXT(obj) \
+	MODULE_CONTEXT(obj, imap_coi_user_module)
+#define IMAP_COI_USER_CONTEXT_REQUIRE(obj) \
+	MODULE_CONTEXT_REQUIRE(obj, imap_coi_user_module)
 
-struct imap_coi_client {
-	union imap_module_context module_ctx;
-	struct imap_client_vfuncs super;
-	struct client *client;
-
+struct imap_coi_user {
+	union mail_user_module_context module_ctx;
 	struct coi_context *coi_ctx;
 };
 
 const char *imap_coi_plugin_version = DOVECOT_ABI_VERSION;
 
 static struct module *imap_coi_module;
-static MODULE_CONTEXT_DEFINE_INIT(imap_coi_client_module,
-				  &imap_module_register);
+static MODULE_CONTEXT_DEFINE_INIT(imap_coi_user_module,
+				  &mail_user_module_register);
 
 static imap_client_created_func_t *next_hook_client_created;
 
@@ -29,49 +29,19 @@ static unsigned int imap_feature_coi = UINT_MAX;
 
 static void imap_client_enable_coi(struct client *client)
 {
-	struct imap_coi_client *icclient = IMAP_COI_CONTEXT(client);
+	struct imap_coi_user *icuser = IMAP_COI_USER_CONTEXT(client->user);
 	const char *line;
 
-	if (icclient == NULL)
+	if (icuser == NULL)
 		return;
 
 	line = t_strdup_printf("* COI MAILBOX-ROOT %s",
-			       coi_get_mailbox_root(icclient->coi_ctx));
+			       coi_get_mailbox_root(icuser->coi_ctx));
 	client_send_line(client, line);
-}
-
-static void
-imap_coi_client_init(struct client *client)
-{
-	struct imap_coi_client *icclient = IMAP_COI_CONTEXT(client);
-
-	icclient->coi_ctx = coi_context_init(client->user);
-
-	icclient->super.init(client);
-}
-
-static void
-imap_coi_client_destroy(struct client *client, const char *reason)
-{
-	struct imap_coi_client *icclient = IMAP_COI_CONTEXT(client);
-
-	coi_context_deinit(&icclient->coi_ctx);
-
-	icclient->super.destroy(client, reason);
 }
 
 static void imap_coi_client_create(struct client *client)
 {
-	struct imap_coi_client *icclient;
-
-	icclient = p_new(client->pool, struct imap_coi_client, 1);
-	MODULE_CONTEXT_SET(client, imap_coi_client_module, icclient);
-	icclient->client = client;
-
-	icclient->super = client->v;
-	client->v.init = imap_coi_client_init;
-	client->v.destroy = imap_coi_client_destroy;
-
 	client_add_capability(client, "COI");
 }
 
@@ -86,6 +56,42 @@ static void imap_coi_client_created(struct client **_client)
 		next_hook_client_created(_client);
 }
 
+static void imap_coi_user_deinit(struct mail_user *user)
+{
+	struct imap_coi_user *icuser = IMAP_COI_USER_CONTEXT_REQUIRE(user);
+
+	coi_context_deinit(&icuser->coi_ctx);
+	icuser->module_ctx.super.deinit(user);
+}
+
+static void imap_coi_mail_user_created(struct mail_user *user)
+{
+	struct mail_user_vfuncs *v = user->vlast;
+	struct imap_coi_user *icuser;
+
+	icuser = p_new(user->pool, struct imap_coi_user, 1);
+	icuser->module_ctx.super = *v;
+	user->vlast = &icuser->module_ctx.super;
+
+	v->deinit = imap_coi_user_deinit;
+	MODULE_CONTEXT_SET(user, imap_coi_user_module, icuser);
+}
+
+static void imap_coi_mail_namespaces_created(struct mail_namespace *namespaces)
+{
+	struct mail_user *user = namespaces->user;
+	struct imap_coi_user *icuser = IMAP_COI_USER_CONTEXT_REQUIRE(user);
+
+	/* don't set COI context for raw user */
+	if (!user->autocreated)
+		icuser->coi_ctx = coi_context_init(user);
+}
+
+static struct mail_storage_hooks imap_coi_mail_storage_hooks = {
+	.mail_user_created = imap_coi_mail_user_created,
+	.mail_namespaces_created = imap_coi_mail_namespaces_created,
+};
+
 void imap_coi_plugin_init(struct module *module)
 {
 	imap_coi_module = module;
@@ -94,11 +100,13 @@ void imap_coi_plugin_init(struct module *module)
 
 	imap_feature_coi =
 		imap_feature_register("COI", 0, imap_client_enable_coi);
+	mail_storage_hooks_add(module, &imap_coi_mail_storage_hooks);
 }
 
 void imap_coi_plugin_deinit(void)
 {
 	imap_client_created_hook_set(next_hook_client_created);
+	mail_storage_hooks_remove(&imap_coi_mail_storage_hooks);
 }
 
 const char *imap_coi_plugin_dependencies[] = { NULL };
