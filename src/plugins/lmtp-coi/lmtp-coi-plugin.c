@@ -7,6 +7,7 @@
 #include "lmtp-recipient.h"
 #include "lmtp-coi-plugin.h"
 
+#include "coi-config.h"
 #include "coi-common.h"
 
 #define LMTP_COI_CONTEXT(obj) \
@@ -161,27 +162,32 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 			   struct smtp_server_cmd_ctx *cmd,
 			   struct smtp_server_transaction *trans,
 			   struct lmtp_local_deliver_context *lldctx,
-			   struct coi_context *coi_ctx)
+			   struct coi_context *coi_ctx,
+			   const char **client_error_r)
 {
 	struct smtp_server_recipient *rcpt = lrcpt->rcpt;
 	enum mailbox_transaction_flags trans_flags;
 	struct mailbox_transaction_context *mtrans;
 	struct mail_save_context *save_ctx;
-	struct smtp_address *rcpt_to = rcpt->path;
-	unsigned int rcpt_idx = rcpt->index;
 	struct mailbox *box;
 	struct mail_storage *storage;
+	struct coi_config config;
 	int ret = 0;
+
+	if (coi_config_read(coi_ctx, &config) < 0) {
+		*client_error_r = "Failed to read COI configuration";
+		return -1;
+	}
+	if (config.filter != COI_CONFIG_FILTER_ACTIVE) {
+		/* Chats aren't (immediately) stored to Chats mailbox */
+		return 1;
+	}
 
 	if (coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS,
 			     MAILBOX_FLAG_AUTO_CREATE |
 			     MAILBOX_FLAG_SAVEONLY | MAILBOX_FLAG_POST_SESSION,
 			     &box, &storage) <= 0) {
-		smtp_server_reply_index(
-			cmd, rcpt_idx, 451, "4.2.0",
-			"<%s> Failed to save chat message: %s",
-			smtp_address_encode(rcpt_to),
-			mail_storage_get_last_error(storage, NULL));
+		*client_error_r = mail_storage_get_last_error(storage, NULL);
 		return -1;
 	}
 
@@ -205,17 +211,13 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 		i_error("COI: Failed to save message to chats mailbox `%s': %s",
 			mailbox_get_vname(box),
 			mail_storage_get_last_internal_error(storage, NULL));
-		smtp_server_reply_index(
-			cmd, rcpt_idx, 451, "4.2.0",
-			"<%s> Failed to save chat message: %s",
-			smtp_address_encode(rcpt_to),
-			mail_storage_get_last_error(storage, NULL));
+		*client_error_r = mail_storage_get_last_error(storage, NULL);
 	} else {
 		i_info("COI: Saved message to chats mailbox `%s'",
 		       mailbox_get_vname(box));
-		smtp_server_reply_index(cmd, rcpt_idx,
+		smtp_server_reply_index(cmd, rcpt->index,
 			250, "2.0.0", "<%s> %s Saved chat message",
-			smtp_address_encode(rcpt_to), lldctx->session_id);
+			smtp_address_encode(rcpt->path), lldctx->session_id);
 	}
 
 	mailbox_free(&box);
@@ -230,43 +232,32 @@ lmtp_coi_client_local_deliver(struct client *client,
 			      struct lmtp_local_deliver_context *lldctx)
 {
 	struct lmtp_coi_client *lcclient = LMTP_COI_CONTEXT(client);
-	struct lmtp_coi_recipient *lcrcpt = LMTP_COI_RCPT_CONTEXT(lrcpt);
 	struct coi_context *coi_ctx = NULL;
 	struct smtp_server_recipient *rcpt = lrcpt->rcpt;
 	struct mail_user *user = lldctx->rcpt_user;
-	const char *header;
+	const char *header, *client_error;
+	int ret;
 
-	if (lcrcpt != NULL) {
-		/* Handle COI recipient delivery (RCPT command with tokens) */
-		i_debug("coi: Delivering for COI recipient `%s'",
-			smtp_address_encode(rcpt->path));
-
-		coi_ctx = coi_context_init(user);
-
-		// FIXME: do COI magic stuff?
-	} else if (mail_get_first_header(lldctx->src_mail, COI_MSGHDR_CHAT,
-					 &header) > 0) {
-		/* Message has COI chat header */
-		coi_ctx = coi_context_init(user);
-	} else {
-		coi_ctx = coi_context_init(user);
-		if (coi_mail_is_chat_related(coi_ctx, lldctx->src_mail) <= 0) {
-			/* Message has no references to chat messages */
-			coi_context_deinit(&coi_ctx);
-		}
-	}
-
-	if (coi_ctx != NULL) {
-		int ret;
-
-		/* Save it as a chat message only */
+	coi_ctx = coi_context_init(user);
+	if (mail_get_first_header(lldctx->src_mail, COI_MSGHDR_CHAT, &header) > 0 ||
+	    coi_mail_is_chat_related(coi_ctx, lldctx->src_mail) > 0) {
+		/* This is a chat message */
 		ret = lmtp_coi_client_store_chat(lrcpt, cmd, trans, lldctx,
-						 coi_ctx);
-		coi_context_deinit(&coi_ctx);
-		return ret;
+						 coi_ctx, &client_error);
+		if (ret < 0) {
+			smtp_server_reply_index(
+				cmd, rcpt->index, 451, "4.2.0",
+				"<%s> Failed to save chat message: %s",
+				smtp_address_encode(rcpt->path), client_error);
+			ret = -1;
+		}
+	} else {
+		ret = 1;
 	}
+	coi_context_deinit(&coi_ctx);
 
-	return lcclient->super.local_deliver(client, lrcpt, cmd, trans, lldctx);
+	return ret <= 0 ? ret :
+		lcclient->super.local_deliver(client, lrcpt, cmd, trans, lldctx);
 }
 
 static void lmtp_coi_client_create(struct client *client)
