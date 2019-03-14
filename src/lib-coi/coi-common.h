@@ -18,6 +18,7 @@
 
 #define COI_MAILBOX_CHATS "Chats"
 #define COI_MAILBOX_CONTACTS "Contacts"
+#define COI_MAILBOX_CONFIGURATION "Configuration"
 
 /*
  * Plugin settings
