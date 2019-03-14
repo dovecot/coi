@@ -4,6 +4,11 @@
 #include "mail-storage.h"
 
 /*
+ * Message keywords
+ */
+#define COI_KEYWORD_HASCHAT "$HasChat"
+
+/*
  * Message headers
  */
 

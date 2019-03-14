@@ -3,6 +3,7 @@
 #include "lmtp-common.h"
 #include "module-context.h"
 #include "mail-user.h"
+#include "mail-storage-private.h"
 #include "smtp-address.h"
 #include "lmtp-recipient.h"
 #include "lmtp-coi-plugin.h"
@@ -15,11 +16,21 @@
 #define LMTP_COI_RCPT_CONTEXT(obj) \
 	MODULE_CONTEXT(obj, lmtp_coi_recipient_module)
 
+#define LMTP_COI_STORAGE_CONTEXT(obj) \
+	MODULE_CONTEXT_REQUIRE(obj, lmtp_coi_storage_module)
+#define LMTP_COI_MAIL_CONTEXT(obj) \
+	MODULE_CONTEXT(obj, lmtp_coi_mail_module)
+
 struct lmtp_coi_recipient;
 struct lmtp_coi_backend;
 struct lmtp_coi_client;
 
 // FIXME: Debugging messages in this plugin need to use events
+
+struct lmtp_coi_mail {
+	union mail_module_context module_ctx;
+	bool add_has_chat_flag;
+};
 
 struct lmtp_coi_recipient {
 	union lmtp_recipient_module_context module_ctx;
@@ -47,6 +58,9 @@ static MODULE_CONTEXT_DEFINE_INIT(lmtp_coi_client_module,
 				  &lmtp_module_register);
 static MODULE_CONTEXT_DEFINE_INIT(lmtp_coi_recipient_module,
 				  &lmtp_recipient_module_register);
+static MODULE_CONTEXT_DEFINE_INIT(lmtp_coi_storage_module,
+				  &mail_storage_module_register);
+static MODULE_CONTEXT_DEFINE_INIT(lmtp_coi_mail_module, &mail_module_register);
 
 static lmtp_client_created_func_t *next_hook_client_created;
 
@@ -178,9 +192,27 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 		*client_error_r = "Failed to read COI configuration";
 		return -1;
 	}
-	if (config.filter != COI_CONFIG_FILTER_ACTIVE) {
-		/* Chats aren't (immediately) stored to Chats mailbox */
+	switch (config.filter) {
+	case COI_CONFIG_FILTER_NONE:
+		/* store to INBOX */
 		return 1;
+	case COI_CONFIG_FILTER_ACTIVE:
+		break;
+	case COI_CONFIG_FILTER_READ: {
+		/* For now store to INBOX, but move to Chats when \Seen flag
+		   is set. Add $HasChat keyword so IMAP plugin can do this
+		   efficiently. */
+		struct mail_private *pmail =
+			container_of(lldctx->src_mail, struct mail_private, mail);
+		struct lmtp_coi_mail *lcmail = LMTP_COI_MAIL_CONTEXT(pmail);
+
+		if (lcmail == NULL) {
+			lcmail = p_new(pmail->pool, struct lmtp_coi_mail, 1);
+			MODULE_CONTEXT_SET(pmail, lmtp_coi_mail_module, lcmail);
+		}
+		lcmail->add_has_chat_flag = TRUE;
+		return 1;
+	}
 	}
 
 	if (coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS,
@@ -296,6 +328,50 @@ static void lmtp_coi_client_created(struct client **_client)
 		next_hook_client_created(_client);
 }
 
+static int
+lmtp_coi_copy(struct mail_save_context *ctx, struct mail *mail)
+{
+	struct mailbox_transaction_context *t = ctx->transaction;
+	union mailbox_module_context *lcbox = LMTP_COI_STORAGE_CONTEXT(t->box);
+	struct mail_private *pmail =
+		container_of(mail, struct mail_private, mail);
+	struct lmtp_coi_mail *lcmail = LMTP_COI_MAIL_CONTEXT(pmail);
+
+	if (lcmail != NULL && lcmail->add_has_chat_flag) {
+		const char *const chat_kw_arr[] = { COI_KEYWORD_HASCHAT, NULL };
+		struct mail_keywords *chat_kw;
+
+		chat_kw = mailbox_keywords_create_valid(t->box, chat_kw_arr);
+		if (ctx->data.keywords == NULL)
+			ctx->data.keywords = chat_kw;
+		else {
+			struct mail_keywords *old_kw = ctx->data.keywords;
+			ctx->data.keywords = mailbox_keywords_merge(old_kw, chat_kw);
+			mailbox_keywords_unref(&old_kw);
+			mailbox_keywords_unref(&chat_kw);
+		}
+	}
+
+	return lcbox->super.copy(ctx, mail);
+}
+
+static void lmtp_coi_mailbox_allocated(struct mailbox *box)
+{
+	struct mailbox_vfuncs *v = box->vlast;
+	union mailbox_module_context *lcbox;
+
+	lcbox = p_new(box->pool, union mailbox_module_context, 1);
+	lcbox->super = *v;
+	box->vlast = &lcbox->super;
+
+	v->copy = lmtp_coi_copy;
+	MODULE_CONTEXT_SET_SELF(box, lmtp_coi_storage_module, lcbox);
+}
+
+static struct mail_storage_hooks lmtp_coi_mail_storage_hooks = {
+	.mailbox_allocated = lmtp_coi_mailbox_allocated,
+};
+
 void lmtp_coi_plugin_init(struct module *module)
 {
 	i_debug("coi: Plugin init");
@@ -304,6 +380,7 @@ void lmtp_coi_plugin_init(struct module *module)
 	next_hook_client_created =
 		lmtp_client_created_hook_set(
 			lmtp_coi_client_created);
+	mail_storage_hooks_add(module, &lmtp_coi_mail_storage_hooks);
 }
 
 void lmtp_coi_plugin_deinit(void)
@@ -311,6 +388,7 @@ void lmtp_coi_plugin_deinit(void)
 	i_debug("coi: Plugin deinit");
 
 	lmtp_client_created_hook_set(next_hook_client_created);
+	mail_storage_hooks_remove(&lmtp_coi_mail_storage_hooks);
 }
 
 const char *lmtp_coi_plugin_dependencies[] = { NULL };
