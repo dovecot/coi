@@ -16,7 +16,7 @@ Makefile.in
 /depcomp
 /dummy-config.h
 /dummy-config.h.in
-/coi-config.h
+/coi-autoconfig.h
 /install-sh
 /libtool
 /ltmain.sh

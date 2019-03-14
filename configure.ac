@@ -7,7 +7,7 @@ AC_CONFIG_MACRO_DIR([m4])
 # tightly integrated in autoconf/automake and therefore it is difficult not to use it. As
 # a workaround we give autoheader a dummy config header to chew on and we handle the
 # real config header ourselves.
-AC_CONFIG_HEADERS([dummy-config.h coi-config.h])
+AC_CONFIG_HEADERS([dummy-config.h coi-autoconfig.h])
 
 AC_DEFINE_UNQUOTED(COI_NAME, "$PACKAGE_NAME",
         [Define to the full name of Dovecot Chat over IMAP.])
