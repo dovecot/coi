@@ -517,9 +517,9 @@ submission_coi_client_store_chat(struct submission_coi_client *scclient,
 		return;
 	}
 
-	if (coi_mailbox_chats_open(coi_ctx, MAILBOX_FLAG_SAVEONLY |
-					    MAILBOX_FLAG_POST_SESSION,
-				   &box, &storage) < 0)
+	if (coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS,
+			     MAILBOX_FLAG_SAVEONLY | MAILBOX_FLAG_POST_SESSION,
+			     &box, &storage) < 0)
 		return;
 
 	trans_flags = MAILBOX_TRANSACTION_FLAG_EXTERNAL;

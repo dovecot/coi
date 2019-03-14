@@ -102,9 +102,9 @@ coi_mailbox_get_name(struct coi_context *coi_ctx, const char *base_name)
 	return str_c(name);
 }
 
-static int coi_mailbox_open(struct coi_context *coi_ctx, const char *base_name,
-			    enum mailbox_flags flags, struct mailbox **box_r,
-			    struct mail_storage **storage_r)
+int coi_mailbox_open(struct coi_context *coi_ctx, const char *base_name,
+		     enum mailbox_flags flags, struct mailbox **box_r,
+		     struct mail_storage **storage_r)
 {
 	struct mailbox *box;
 
@@ -122,14 +122,6 @@ static int coi_mailbox_open(struct coi_context *coi_ctx, const char *base_name,
 	       mail_storage_get_last_internal_error(*storage_r, NULL));
 	mailbox_free(box_r);
 	return -1;
-}
-
-int coi_mailbox_chats_open(struct coi_context *coi_ctx,
-			   enum mailbox_flags flags, struct mailbox **box_r,
-			   struct mail_storage **storage_r)
-{
-	return coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS,
-				flags, box_r, storage_r);
 }
 
 /*
@@ -155,7 +147,7 @@ coi_mailbox_chats_has_reference(struct coi_context *coi_ctx,
 	if (coi_ctx->coi_trust_msgid_prefix)
 		return 1;
 
-	if (coi_mailbox_chats_open(coi_ctx, 0, &box, &storage) < 0) {
+	if (coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS, 0, &box, &storage) < 0) {
 		// FIXME: error?
 		return -1;
 	}
