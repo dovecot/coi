@@ -174,8 +174,9 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 	int ret = 0;
 
 	if (coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS,
+			     MAILBOX_FLAG_AUTO_CREATE |
 			     MAILBOX_FLAG_SAVEONLY | MAILBOX_FLAG_POST_SESSION,
-			     &box, &storage) < 0) {
+			     &box, &storage) <= 0) {
 		smtp_server_reply_index(
 			cmd, rcpt_idx, 451, "4.2.0",
 			"<%s> Failed to save chat message: %s",

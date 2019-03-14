@@ -107,6 +107,9 @@ int coi_mailbox_open(struct coi_context *coi_ctx, const char *base_name,
 		     struct mail_storage **storage_r)
 {
 	struct mailbox *box;
+	const char *errstr;
+	enum mail_error error;
+	int ret;
 
 	*box_r = NULL;
 
@@ -115,13 +118,19 @@ int coi_mailbox_open(struct coi_context *coi_ctx, const char *base_name,
 		coi_mailbox_get_name(coi_ctx, base_name), flags);
 	*storage_r = mailbox_get_storage(box);
 	if (mailbox_open(box) == 0)
-		return 0;
+		return 1;
 
-	i_info("COI: Failed to open mailbox `%s': %s",
-	       mailbox_get_vname(box),
-	       mail_storage_get_last_internal_error(*storage_r, NULL));
+	errstr = mailbox_get_last_internal_error(box, &error);
+	if (error == MAIL_ERROR_NOTFOUND &&
+	    (flags & MAILBOX_FLAG_AUTO_CREATE) == 0)
+		ret = 0;
+	else {
+		i_error("COI: Failed to open mailbox `%s': %s",
+			mailbox_get_vname(box), errstr);
+		ret = -1;
+	}
 	mailbox_free(box_r);
-	return -1;
+	return ret;
 }
 
 /*
@@ -140,17 +149,16 @@ coi_mailbox_chats_has_reference(struct coi_context *coi_ctx,
 	const char *const *msgidp;
 	struct mail_search_context *search_ctx;
 	struct mail *mail;
-	int ret = 0;
+	int ret;
 
 	if (*msgids == NULL)
 		return 0;
 	if (coi_ctx->coi_trust_msgid_prefix)
 		return 1;
 
-	if (coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS, 0, &box, &storage) < 0) {
-		// FIXME: error?
-		return -1;
-	}
+	ret = coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS, 0, &box, &storage);
+	if (ret <= 0)
+		return ret;
 
 	mtrans = mailbox_transaction_begin(box, 0, __func__);
 
@@ -183,6 +191,7 @@ coi_mailbox_chats_has_reference(struct coi_context *coi_ctx,
 	search_ctx = mailbox_search_init(mtrans, search_args, NULL, 0, NULL);
 	mail_search_args_unref(&search_args);
 
+	ret = 0;
 	while (mailbox_search_next(search_ctx, &mail)) {
 		if (!mail->expunged) {
 			ret = 1;

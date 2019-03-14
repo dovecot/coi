@@ -38,7 +38,9 @@ void coi_context_deinit(struct coi_context **_coi_ctx);
 
 const char *coi_get_mailbox_root(struct coi_context *coi_ctx);
 
-/* Open a COI mailbox. base_name should be one of the COI_MAILBOX_* macros. */
+/* Open a COI mailbox. base_name should be one of the COI_MAILBOX_* macros.
+   Returns 1 on success, 0 if mailbox doesn't exist, -1 on other errors.
+   On errors the storage error is logged. */
 int coi_mailbox_open(struct coi_context *coi_ctx, const char *base_name,
 		     enum mailbox_flags flags, struct mailbox **box_r,
 		     struct mail_storage **storage_r);
