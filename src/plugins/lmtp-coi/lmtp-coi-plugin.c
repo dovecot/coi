@@ -173,7 +173,6 @@ lmtp_coi_client_cmd_rcpt(struct client *client,
 
 static int
 lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
-			   struct smtp_server_cmd_ctx *cmd,
 			   struct smtp_server_transaction *trans,
 			   struct lmtp_local_deliver_context *lldctx,
 			   struct coi_context *coi_ctx,
@@ -247,9 +246,9 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 	} else {
 		i_info("COI: Saved message to chats mailbox `%s'",
 		       mailbox_get_vname(box));
-		smtp_server_reply_index(cmd, rcpt->index,
-			250, "2.0.0", "<%s> %s Saved chat message",
-			smtp_address_encode(rcpt->path), lldctx->session_id);
+		smtp_server_recipient_reply(rcpt, 250, "2.0.0",
+					    "%s Saved chat message",
+					    lldctx->session_id);
 	}
 
 	mailbox_free(&box);
@@ -274,13 +273,13 @@ lmtp_coi_client_local_deliver(struct client *client,
 	if (mail_get_first_header(lldctx->src_mail, COI_MSGHDR_CHAT, &header) > 0 ||
 	    coi_mail_is_chat_related(coi_ctx, lldctx->src_mail) > 0) {
 		/* This is a chat message */
-		ret = lmtp_coi_client_store_chat(lrcpt, cmd, trans, lldctx,
+		ret = lmtp_coi_client_store_chat(lrcpt, trans, lldctx,
 						 coi_ctx, &client_error);
 		if (ret < 0) {
-			smtp_server_reply_index(
-				cmd, rcpt->index, 451, "4.2.0",
-				"<%s> Failed to save chat message: %s",
-				smtp_address_encode(rcpt->path), client_error);
+			smtp_server_recipient_reply(
+				rcpt, 451, "4.2.0",
+				"Failed to save chat message: %s",
+				client_error);
 			ret = -1;
 		}
 	} else {
