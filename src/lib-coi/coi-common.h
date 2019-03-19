@@ -31,6 +31,10 @@
 
 #define COI_SETTING_MAILBOX_ROOT "coi_mailbox_root"
 #define COI_SETTING_TRUST_MSGID_PREFIX "coi_trust_msgid_prefix"
+#define COI_SETTING_TOKEN_TEMP_SECRETS "coi_token_temp_secrets"
+#define COI_SETTING_TOKEN_PERM_SECRETS "coi_token_perm_secrets"
+
+#define COI_PERM_TOKEN_VALIDITY_SECS (3600*24*365) /* FIXME: move to setting */
 
 /*
  * COI context
