@@ -20,23 +20,16 @@
  * COI context
  */
 
-struct coi_context *
-coi_context_init(struct mail_user *user)
+static void coi_context_parse_settings(struct coi_context *coi_ctx)
 {
-	struct coi_context *coi_ctx;
-	struct mail_namespace *ns;
-	void **sets;
-	pool_t pool;
+	struct mail_user *user = coi_ctx->user;
 	const char *root_box_name;
-
-	pool = pool_alloconly_create("coi context", 2048);
-	coi_ctx = p_new(pool, struct coi_context, 1);
-	coi_ctx->pool = pool;
-	coi_ctx->user = user;
+	struct mail_namespace *ns;
 
 	coi_ctx->coi_trust_msgid_prefix =
 		mail_user_plugin_getenv_bool(user, COI_SETTING_TRUST_MSGID_PREFIX);
 
+	/* COI root folder */
 	root_box_name = mail_user_plugin_getenv(user, COI_SETTING_MAILBOX_ROOT);
 	if (root_box_name == NULL) {
 		ns = mail_namespace_find_inbox(user->namespaces);
@@ -46,8 +39,22 @@ coi_context_init(struct mail_user *user)
 	} else {
 		ns = mail_namespace_find(user->namespaces, root_box_name);
 	}
-	coi_ctx->root_box_name = p_strdup(pool, root_box_name);
+	coi_ctx->root_box_name = p_strdup(coi_ctx->pool, root_box_name);
 	coi_ctx->root_ns = ns;
+}
+
+struct coi_context *
+coi_context_init(struct mail_user *user)
+{
+	struct coi_context *coi_ctx;
+	void **sets;
+	pool_t pool;
+
+	pool = pool_alloconly_create("coi context", 2048);
+	coi_ctx = p_new(pool, struct coi_context, 1);
+	coi_ctx->pool = pool;
+	coi_ctx->user = user;
+	coi_context_parse_settings(coi_ctx);
 
 	sets = master_service_settings_get_others(master_service);
 	coi_ctx->raw_mail_user =
