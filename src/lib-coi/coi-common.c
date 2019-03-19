@@ -81,6 +81,17 @@ const char *coi_get_mailbox_root(struct coi_context *coi_ctx)
 	return coi_ctx->root_box_name;
 }
 
+const char *coi_normalize_smtp_address(const struct smtp_address *address)
+{
+	struct smtp_address new_address;
+
+	i_zero(&new_address);
+	new_address.localpart = t_str_lcase(address->localpart);
+	new_address.domain = t_str_lcase(address->domain);
+
+	return smtp_address_encode(&new_address);
+}
+
 /*
  * Chats mailbox
  */
