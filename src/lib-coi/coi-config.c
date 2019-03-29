@@ -22,6 +22,10 @@ static int coi_config_try_read(struct mailbox *box, struct coi_config *config_r)
 	if (mailbox_sync(box, 0) < 0)
 		return -1;
 	mailbox_get_open_status(box, STATUS_MESSAGES, &status);
+	if (status.messages == 0) {
+		/* config message is missing - use defaults */
+		return 0;
+	}
 
 	trans = mailbox_transaction_begin(box, 0, "COI Configuration read");
 	/* read configuration from the newest mail */
