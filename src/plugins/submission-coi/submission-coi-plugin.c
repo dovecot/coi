@@ -386,8 +386,10 @@ submission_coi_cmd_rcpt_continue(struct submission_coi_client *scclient,
 		i_debug("coi: RCPT command: STOKEN enabled");
 		// FIXME: probably some more logic here
 		// FIXME: just forwarding the tokens we got before.
-		smtp_params_rcpt_add_extra(&rcpt->params, rcpt->pool,
-					   "MYSTOKEN", scrcpt->my_token);
+		if (scrcpt->my_token != NULL) {
+			smtp_params_rcpt_add_extra(&rcpt->params, rcpt->pool,
+						   "MYSTOKEN", scrcpt->my_token);
+		}
 		smtp_params_rcpt_add_extra(&rcpt->params, rcpt->pool,
 					   "STOKEN", scrcpt->token);
 	}
@@ -471,17 +473,18 @@ submission_coi_client_cmd_rcpt(struct client *client,
 				"The MYSTOKEN= parameter cannot be used without SYNC"); // FIXME: better error
 			return -1;
 		}
+		if (token == NULL) {
+			smtp_server_reply(cmd, 501, "5.5.4",
+				"The MYSTOKEN= parameter can't be used without STOKEN parameter");
+			return -1;
+		}
 		my_token = param;
 	}
 
-	if (token == NULL && my_token == NULL) {
+	if (token == NULL) {
 		/* This is a normal recipient */
 
 		// Delivered through default backend.
-	} else if (token == NULL || my_token == NULL) {
-		smtp_server_reply(cmd, 501, "5.5.4",
-				  "The STOKEN= and MYSTOKEN= parameters are both required");
-		return -1;
 	} else {
 		/* This is a chat recipient */
 		return submission_coi_cmd_rcpt_chat(scclient, srcpt,
