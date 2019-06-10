@@ -197,6 +197,8 @@ submission_coi_backend_trans_start(struct submission_backend *backend,
 				   const struct smtp_params_mail *params)
 {
 	struct client *client = backend->client;
+	struct submission_coi_client *scclient =
+		SUBMISSION_COI_CONTEXT(client);
 	struct submission_coi_backend *scbackend =
 		SUBMISSION_COI_BACKEND_CONTEXT(backend);
 	struct smtp_params_mail new_params;
@@ -220,9 +222,12 @@ submission_coi_backend_trans_start(struct submission_backend *backend,
 
 	if (scbackend->have_stoken) {
 		i_debug("coi: Started backend transaction (with STOKEN)");
-		smtp_params_mail_copy(pool, &new_params, params);
-		smtp_params_mail_add_extra(&new_params, pool, "SYNC", NULL);
-		params = &new_params;
+		/* SYNC is only sent for SMTP backends, not LMTP */
+		if (scbackend != scclient->lmtp_backend) {
+			smtp_params_mail_copy(pool, &new_params, params);
+			smtp_params_mail_add_extra(&new_params, pool, "SYNC", NULL);
+			params = &new_params;
+		}
 	} else {
 		i_debug("coi: Started backend transaction (without STOKEN)");
 	}
