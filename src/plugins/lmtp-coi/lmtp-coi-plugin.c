@@ -211,6 +211,15 @@ lmtp_coi_client_cmd_rcpt(struct client *client,
 		return -1;
 	} else {
 		/* This is a chat recipient */
+		const char *hash = coi_contact_generate_hash(
+			lcclient->trans_state.from_normalized,
+			coi_normalize_smtp_address(rcpt->path));
+		if (strcmp(parsed_token->from_to_normalized_hash, hash) != 0) {
+			smtp_server_reply(cmd, 501, "5.5.4",
+				"Invalid STOKEN: from/to address pair doesn't match token's hash");
+			return -1;
+		}
+
 		return lmtp_coi_cmd_rcpt_chat(lcclient, lrcpt, parsed_token,
 					      temp_token, my_parsed_token);
 	}
