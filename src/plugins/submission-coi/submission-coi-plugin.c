@@ -389,9 +389,9 @@ submission_coi_cmd_rcpt_continue(struct submission_coi_client *scclient,
 		// FIXME: probably some more logic here
 		// FIXME: just forwarding the tokens we got before.
 		smtp_params_rcpt_add_extra(&rcpt->params, rcpt->pool,
-					   "MYTOKEN", scrcpt->my_token);
+					   "MYSTOKEN", scrcpt->my_token);
 		smtp_params_rcpt_add_extra(&rcpt->params, rcpt->pool,
-					   "TOKEN", scrcpt->token);
+					   "STOKEN", scrcpt->token);
 	}
 
 	return scclient->super.cmd_rcpt(client, cmd, srcpt);
@@ -449,28 +449,28 @@ submission_coi_client_cmd_rcpt(struct client *client,
 	const char *token, *my_token, *param;
 
 	token = my_token = NULL;
-	if (smtp_params_rcpt_drop_extra(&rcpt->params, "TOKEN", &param)) {
+	if (smtp_params_rcpt_drop_extra(&rcpt->params, "STOKEN", &param)) {
 		if (param == NULL) {
 			smtp_server_reply(cmd, 501, "5.5.4",
-					  "Missing TOKEN= parameter value");
+					  "Missing STOKEN= parameter value");
 			return -1;
 		}
 		if (!scclient->trans_state.sync_enabled) {
 			smtp_server_reply(cmd, 501, "5.5.4",
-				"The TOKEN= parameter cannot be used without SYNC"); // FIXME: better error
+				"The STOKEN= parameter cannot be used without SYNC"); // FIXME: better error
 			return -1;
 		}
 		token = param;
 	}
-	if (smtp_params_rcpt_drop_extra(&rcpt->params, "MYTOKEN", &param)) {
+	if (smtp_params_rcpt_drop_extra(&rcpt->params, "MYSTOKEN", &param)) {
 		if (param == NULL) {
 			smtp_server_reply(cmd, 501, "5.5.4",
-					  "Missing MYTOKEN= parameter value");
+					  "Missing MYSTOKEN= parameter value");
 			return -1;
 		}
 		if (!scclient->trans_state.sync_enabled) {
 			smtp_server_reply(cmd, 501, "5.5.4",
-				"The MYTOKEN= parameter cannot be used without SYNC"); // FIXME: better error
+				"The MYSTOKEN= parameter cannot be used without SYNC"); // FIXME: better error
 			return -1;
 		}
 		my_token = param;
@@ -482,7 +482,7 @@ submission_coi_client_cmd_rcpt(struct client *client,
 		// Delivered through default backend.
 	} else if (token == NULL || my_token == NULL) {
 		smtp_server_reply(cmd, 501, "5.5.4",
-				  "The TOKEN= and MYTOKEN= parameters are both required");
+				  "The STOKEN= and MYSTOKEN= parameters are both required");
 		return -1;
 	} else {
 		/* This is a chat recipient */
@@ -600,8 +600,8 @@ static void submission_coi_client_create(struct client *client)
 	client_add_extra_capability(client, "COI", NULL); // FIXME: better name for this protocol
 
 	smtp_server_connection_register_mail_param(client->conn, "SYNC"); // FIXME: better name for this parameter
-	smtp_server_connection_register_rcpt_param(client->conn, "TOKEN");
-	smtp_server_connection_register_rcpt_param(client->conn, "MYTOKEN");
+	smtp_server_connection_register_rcpt_param(client->conn, "STOKEN");
+	smtp_server_connection_register_rcpt_param(client->conn, "MYSTOKEN");
 
 	backend = client->backend_default_relay;
 	if (backend != NULL) {
