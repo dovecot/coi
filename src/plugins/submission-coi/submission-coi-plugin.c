@@ -11,6 +11,8 @@
 #include "submission-coi-plugin.h"
 
 #include "coi-common.h"
+#include "coi-contact.h"
+#include "coi-secret.h"
 
 #define LMTP_SOCKET_NAME "lmtp"
 
@@ -33,7 +35,8 @@ struct submission_coi_recipient {
 
 	struct submission_coi_recipient *next;
 
-	const char *token, *my_token;
+	struct coi_token *token;
+	struct coi_token *my_token;
 };
 
 struct submission_coi_backend {
@@ -60,12 +63,15 @@ struct submission_coi_client {
 	struct submission_client_vfuncs super;
 	struct client *client;
 
+	struct coi_secret_settings secret_set;
+
 	struct submission_coi_backend *backends;
 	struct submission_coi_backend *lmtp_backend;
 
 	struct coi_context *coi_ctx;
 
 	struct {
+		char *from_normalized;
 		struct submission_coi_recipient *rcpts;
 
 		bool sync_enabled:1;
@@ -114,6 +120,7 @@ submission_coi_client_trans_free(struct client *client,
 
 	i_debug("coi: Transaction free");
 
+	i_free(scclient->trans_state.from_normalized);
 	i_zero(&scclient->trans_state);
 
 	scclient->super.trans_free(client, trans);
@@ -370,6 +377,10 @@ submission_coi_client_cmd_mail(struct client *client,
 		data->flags |= SMTP_SERVER_TRANSACTION_FLAG_REPLY_PER_RCPT;
 	}
 
+	i_free(scclient->trans_state.from_normalized);
+	scclient->trans_state.from_normalized =
+		i_strdup(coi_normalize_smtp_address(data->path));
+
 	return scclient->super.cmd_mail(client, cmd, data);
 }
 
@@ -389,14 +400,13 @@ submission_coi_cmd_rcpt_continue(struct submission_coi_client *scclient,
 	i_assert(scbackend != NULL);
 	if (scbackend->have_stoken) {
 		i_debug("coi: RCPT command: STOKEN enabled");
-		// FIXME: probably some more logic here
-		// FIXME: just forwarding the tokens we got before.
+		/* forward STOKEN and MYSTOKEN */
 		if (scrcpt->my_token != NULL) {
 			smtp_params_rcpt_add_extra(&rcpt->params, rcpt->pool,
-						   "MYSTOKEN", scrcpt->my_token);
+				"MYSTOKEN", scrcpt->my_token->token_string);
 		}
 		smtp_params_rcpt_add_extra(&rcpt->params, rcpt->pool,
-					   "STOKEN", scrcpt->token);
+			"STOKEN", scrcpt->token->token_string);
 	}
 
 	return scclient->super.cmd_rcpt(client, cmd, srcpt);
@@ -405,7 +415,8 @@ submission_coi_cmd_rcpt_continue(struct submission_coi_client *scclient,
 static int
 submission_coi_cmd_rcpt_chat(struct submission_coi_client *scclient,
 			     struct submission_recipient *srcpt,
-			     const char *my_token, const char *token)
+			     struct coi_token *token,
+			     struct coi_token *my_token)
 {
 	struct client *client = scclient->client;
 	struct smtp_server_recipient *rcpt = srcpt->rcpt;
@@ -417,8 +428,8 @@ submission_coi_cmd_rcpt_chat(struct submission_coi_client *scclient,
 	MODULE_CONTEXT_SET(srcpt, submission_coi_recipient_module, scrcpt);
 	scrcpt->rcpt = srcpt;
 
-	scrcpt->token = p_strdup(rcpt->pool, token);
-	scrcpt->my_token = p_strdup(rcpt->pool, my_token);
+	scrcpt->token = token;
+	scrcpt->my_token = my_token;
 
 	if (scclient->trans_state.rcpts == NULL) {
 		// FIXME: first chat recipient is always put to LMTP for testing
@@ -451,7 +462,9 @@ submission_coi_client_cmd_rcpt(struct client *client,
 {
 	struct submission_coi_client *scclient = SUBMISSION_COI_CONTEXT(client);
 	struct smtp_server_recipient *rcpt = srcpt->rcpt;
-	const char *token, *my_token, *param;
+	struct coi_token *parsed_token, *my_parsed_token = NULL;
+	const char *token, *my_token, *param, *error;
+	bool temp_token;
 
 	token = my_token = NULL;
 	if (smtp_params_rcpt_drop_extra(&rcpt->params, "STOKEN", &param)) {
@@ -490,10 +503,35 @@ submission_coi_client_cmd_rcpt(struct client *client,
 		/* This is a normal recipient */
 
 		// Delivered through default backend.
+	} else if (coi_token_parse(token, rcpt->pool,
+				   &parsed_token, &error) < 0) {
+		smtp_server_reply(cmd, 501, "5.5.4",
+				  "Couldn't parse STOKEN: %s", error);
+		return -1;
+	} else if (my_token != NULL &&
+		   coi_token_parse(my_token, rcpt->pool,
+				   &my_parsed_token, &error) < 0) {
+		smtp_server_reply(cmd, 501, "5.5.4",
+				  "Couldn't parse MYSTOKEN: %s", error);
+		return -1;
+	} else if (!coi_token_verify_quick(&scclient->secret_set, time(NULL),
+					   parsed_token, &temp_token, &error)) {
+		/* The token can't be valid. Don't accept it. */
+		smtp_server_reply(cmd, 501, "5.5.4",
+				  "Invalid STOKEN: %s", error);
+		return -1;
 	} else {
 		/* This is a chat recipient */
+		const char *hash = coi_contact_generate_hash(
+			scclient->trans_state.from_normalized,
+			coi_normalize_smtp_address(rcpt->path));
+		if (strcmp(parsed_token->from_to_normalized_hash, hash) != 0) {
+			smtp_server_reply(cmd, 501, "5.5.4",
+				"Invalid STOKEN: from/to address pair doesn't match token's hash");
+			return -1;
+		}
 		return submission_coi_cmd_rcpt_chat(scclient, srcpt,
-						    my_token, token);
+				parsed_token, my_parsed_token);
 	}
 
 	i_debug("coi: RCPT command: This ia a normal recipient");
@@ -601,6 +639,10 @@ static void submission_coi_client_create(struct client *client)
 	client->v.cmd_data = submission_coi_client_cmd_data;
 
 	scclient->coi_ctx = coi_context_init(client->user);
+
+	coi_secret_settings_init(&scclient->secret_set, client->pool,
+		mail_user_set_plugin_getenv(client->user->set, COI_SETTING_TOKEN_TEMP_SECRETS),
+		mail_user_set_plugin_getenv(client->user->set, COI_SETTING_TOKEN_PERM_SECRETS));
 
 	client_add_extra_capability(client, "STOKEN", NULL);
 
