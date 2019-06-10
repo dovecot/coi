@@ -160,18 +160,18 @@ lmtp_coi_client_cmd_rcpt(struct client *client,
 	bool temp_token;
 
 	token = my_token = NULL;
-	if (smtp_params_rcpt_drop_extra(&rcpt->params, "TOKEN", &param)) {
+	if (smtp_params_rcpt_drop_extra(&rcpt->params, "STOKEN", &param)) {
 		if (param == NULL) {
 			smtp_server_reply(cmd, 501, "5.5.4",
-					  "Missing TOKEN= parameter value");
+					  "Missing STOKEN= parameter value");
 			return -1;
 		}
 		token = param;
 	}
-	if (smtp_params_rcpt_drop_extra(&rcpt->params, "MYTOKEN", &param)) {
+	if (smtp_params_rcpt_drop_extra(&rcpt->params, "MYSTOKEN", &param)) {
 		if (param == NULL) {
 			smtp_server_reply(cmd, 501, "5.5.4",
-					  "Missing MYTOKEN= parameter value");
+					  "Missing MYSTOKEN= parameter value");
 			return -1;
 		}
 		my_token = param;
@@ -183,23 +183,23 @@ lmtp_coi_client_cmd_rcpt(struct client *client,
 		// Delivered through default backend.
 	} else if (token == NULL || my_token == NULL) {
 		smtp_server_reply(cmd, 501, "5.5.4",
-				  "The TOKEN= and MYTOKEN= parameters are both required");
+				  "The STOKEN= and MYSTOKEN= parameters are both required");
 		return -1;
 	} else if (coi_token_parse(token, rcpt->pool,
 				   &parsed_token, &error) < 0) {
 		smtp_server_reply(cmd, 501, "5.5.4",
-				  "Couldn't parse TOKEN: %s", error);
+				  "Couldn't parse STOKEN: %s", error);
 		return -1;
 	} else if (coi_token_parse(my_token, rcpt->pool,
 				   &my_parsed_token, &error) < 0) {
 		smtp_server_reply(cmd, 501, "5.5.4",
-				  "Couldn't parse MYTOKEN: %s", error);
+				  "Couldn't parse MYSTOKEN: %s", error);
 		return -1;
 	} else if (!coi_token_verify_quick(&lcclient->secret_set, time(NULL),
 					   parsed_token, &temp_token, &error)) {
 		/* The token can't be valid. Don't accept it. */
 		smtp_server_reply(cmd, 501, "5.5.4",
-				  "Invalid TOKEN: %s", error);
+				  "Invalid STOKEN: %s", error);
 		return -1;
 	} else {
 		/* This is a chat recipient */
@@ -390,7 +390,7 @@ lmtp_coi_update_contact(struct coi_contact_transaction **coi_trans,
 	}
 
 	if (lcrcpt->my_token != NULL) {
-		/* Add/update stored MYTOKEN if it has changed. */
+		/* Add/update stored MYSTOKEN if it has changed. */
 		latest_token = latest_contact == NULL ? NULL :
 			coi_contact_token_out_find_hash(latest_contact,
 				coi_contact_generate_hash(to_normalized, from_normalized));
@@ -451,17 +451,17 @@ lmtp_coi_verify_token(struct coi_context *coi_ctx,
 			&error_storage);
 	}
 	if (ret < 0) {
-		i_error("Failed to find COI token: %s",
+		i_error("Failed to find STOKEN: %s",
 			mail_storage_get_last_internal_error(error_storage, NULL));
 		smtp_server_recipient_reply(
 			rcpt, 451, "4.2.0", "Temporary internal error");
 	} else if (ret == 0) {
 		smtp_server_recipient_reply(
 			rcpt, 550, "5.7.30",
-			"Invalid TOKEN: Permanent token not found from contacts");
+			"Invalid STOKEN: Permanent token not found from contacts");
 	} else {
 		/* The token is valid. See if we can send an updated token or
-		   if the provided MYTOKEN differs from what we have stored. */
+		   if the provided MYSTOKEN differs from what we have stored. */
 		if (lmtp_coi_update_contact(&coi_trans, used_token_contact,
 					    used_token, lcrcpt,
 					    from_normalized, to_normalized) < 0) {
@@ -523,7 +523,7 @@ lmtp_coi_client_local_deliver(struct client *client,
 
 	coi_ctx = coi_context_init(user);
 	if (lcrcpt != NULL) {
-		/* Do final TOKEN verification */
+		/* Do final STOKEN verification */
 		if (lmtp_coi_verify_token(coi_ctx, lcrcpt, trans) < 0)
 			ret = -1;
 	}
@@ -576,8 +576,8 @@ static void lmtp_coi_client_create(struct client *client)
 	extra_cap.name = "COI"; // FIXME: better name for this protocol
 	smtp_server_connection_add_extra_capability(client->conn, &extra_cap);
 
-	smtp_server_connection_register_rcpt_param(client->conn, "TOKEN");
-	smtp_server_connection_register_rcpt_param(client->conn, "MYTOKEN");
+	smtp_server_connection_register_rcpt_param(client->conn, "STOKEN");
+	smtp_server_connection_register_rcpt_param(client->conn, "MYSTOKEN");
 }
 
 static void lmtp_coi_client_created(struct client **_client)
