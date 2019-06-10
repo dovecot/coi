@@ -155,7 +155,7 @@ lmtp_coi_client_cmd_rcpt(struct client *client,
 {
 	struct lmtp_coi_client *lcclient = LMTP_COI_CONTEXT(client);
 	struct smtp_server_recipient *rcpt = lrcpt->rcpt;
-	struct coi_token *parsed_token, *my_parsed_token;
+	struct coi_token *parsed_token, *my_parsed_token = NULL;
 	const char *token, *my_token, *param, *error;
 	bool temp_token;
 
@@ -181,16 +181,17 @@ lmtp_coi_client_cmd_rcpt(struct client *client,
 		/* This is a normal recipient */
 
 		// Delivered through default backend.
-	} else if (token == NULL || my_token == NULL) {
+	} else if (token == NULL) {
 		smtp_server_reply(cmd, 501, "5.5.4",
-				  "The STOKEN= and MYSTOKEN= parameters are both required");
+			"The MYSTOKEN= parameter can't be used without STOKEN parameter");
 		return -1;
 	} else if (coi_token_parse(token, rcpt->pool,
 				   &parsed_token, &error) < 0) {
 		smtp_server_reply(cmd, 501, "5.5.4",
 				  "Couldn't parse STOKEN: %s", error);
 		return -1;
-	} else if (coi_token_parse(my_token, rcpt->pool,
+	} else if (my_token != NULL &&
+		   coi_token_parse(my_token, rcpt->pool,
 				   &my_parsed_token, &error) < 0) {
 		smtp_server_reply(cmd, 501, "5.5.4",
 				  "Couldn't parse MYSTOKEN: %s", error);
