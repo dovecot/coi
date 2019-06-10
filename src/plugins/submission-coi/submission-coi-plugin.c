@@ -2,7 +2,10 @@
 
 #include "submission-common.h"
 #include "module-context.h"
+#include "master-service.h"
+#include "auth-master.h"
 #include "mail-user.h"
+#include "mail-storage-service.h"
 #include "smtp-address.h"
 #include "smtp-params.h"
 #include "smtp-client-connection.h"
@@ -413,6 +416,43 @@ submission_coi_cmd_rcpt_continue(struct submission_coi_client *scclient,
 }
 
 static int
+submission_coi_rcpt_is_local(struct client *client,
+			     struct submission_recipient *srcpt)
+{
+	struct mail_storage_service_ctx *storage_service =
+		mail_storage_service_get_global();
+	struct auth_master_connection *auth_conn =
+		mail_storage_service_get_auth_conn(storage_service);
+	const struct auth_user_info info = {
+		.service = master_service_get_name(master_service),
+		.local_ip = *client->user->conn.local_ip,
+		.remote_ip = *client->user->conn.remote_ip,
+		.local_port = client->user->conn.local_port,
+		.remote_port = client->user->conn.remote_port,
+	};
+	const char *username, *detail, *const *fields;
+	pool_t auth_pool;
+	char delim;
+	int ret;
+
+	smtp_address_detail_parse_temp(
+		client->set->recipient_delimiter,
+		srcpt->rcpt->path, &username, &delim, &detail);
+
+	auth_pool = pool_alloconly_create("passdb lookup", 1024);
+	ret = auth_master_pass_lookup(auth_conn, username, &info,
+				      auth_pool, &fields);
+	if (ret < 0) {
+		const char *errstr = fields[0] != NULL ? fields[0] :
+			"Temporary user lookup failure";
+		smtp_server_recipient_reply(srcpt->rcpt, 451,
+					    "4.3.0", "%s", errstr);
+	}
+	pool_unref(&auth_pool);
+	return ret;
+}
+
+static int
 submission_coi_cmd_rcpt_chat(struct submission_coi_client *scclient,
 			     struct submission_recipient *srcpt,
 			     struct coi_token *token,
@@ -421,6 +461,7 @@ submission_coi_cmd_rcpt_chat(struct submission_coi_client *scclient,
 	struct client *client = scclient->client;
 	struct smtp_server_recipient *rcpt = srcpt->rcpt;
 	struct submission_coi_recipient *scrcpt;
+	int ret;
 
 	i_debug("coi: RCPT command: This is a chat recipient");
 
@@ -431,13 +472,17 @@ submission_coi_cmd_rcpt_chat(struct submission_coi_client *scclient,
 	scrcpt->token = token;
 	scrcpt->my_token = my_token;
 
-	if (scclient->trans_state.rcpts == NULL) {
-		// FIXME: first chat recipient is always put to LMTP for testing
-		//        local chat handling
+	ret = submission_coi_rcpt_is_local(scclient->client, srcpt);
+	if (ret < 0)
+		return -1;
+
+	if (ret > 0) {
+		/* local recipient - use lmtp */
+		i_debug("coi: RCPT command: Local recipient");
 		srcpt->backend = submission_coi_lmtp_backend_init(client);
 	} else {
-		// FIXME: subsequent chat recipients are always put to hardcoded
-		//        remote submission server
+		/* remote recipient */
+		i_debug("coi: RCPT command: Remote recipient");
 		srcpt->backend = submission_coi_esmtp_backend_init(
 			client, "otherhost.example");
 	}
