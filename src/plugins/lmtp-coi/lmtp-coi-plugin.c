@@ -573,7 +573,7 @@ static void lmtp_coi_client_create(struct client *client)
 		mail_user_set_plugin_getenv(client->user_set, COI_SETTING_TOKEN_PERM_SECRETS));
 
 	i_zero(&extra_cap);
-	extra_cap.name = "COI"; // FIXME: better name for this protocol
+	extra_cap.name = "STOKEN";
 	smtp_server_connection_add_extra_capability(client->conn, &extra_cap);
 
 	smtp_server_connection_register_rcpt_param(client->conn, "STOKEN");
