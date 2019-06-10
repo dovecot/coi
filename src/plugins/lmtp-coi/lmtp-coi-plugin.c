@@ -45,6 +45,7 @@ struct lmtp_coi_recipient {
 
 	struct coi_token *token, *my_token;
 	const char *reply_token;
+	const char *to_normalized;
 
 	/* received token was validated using temporary secrets */
 	bool temp_token;
@@ -137,6 +138,8 @@ lmtp_coi_cmd_rcpt_chat(struct lmtp_coi_client *lcclient,
 	lcrcpt->token = token;
 	lcrcpt->my_token = my_token;
 	lcrcpt->temp_token = temp_token;
+	lcrcpt->to_normalized =
+		p_strdup(rcpt->pool, coi_normalize_smtp_address(rcpt->path));
 
 	lcrcpt->next = lcclient->trans_state.rcpts;
 	lcclient->trans_state.rcpts = lcrcpt;
@@ -298,7 +301,7 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 
 static bool
 lmtp_generate_perm_token(struct lmtp_coi_recipient *lcrcpt,
-			 const char *from_normalized, const char *to_normalized,
+			 const char *from_normalized,
 			 struct coi_token **token_r)
 {
 	struct lmtp_coi_client *lcclient =
@@ -314,7 +317,7 @@ lmtp_generate_perm_token(struct lmtp_coi_recipient *lcrcpt,
 	token = coi_token_new(pool_datastack_create());
 	token->validity_secs = COI_PERM_TOKEN_VALIDITY_SECS;
 	token->from_to_normalized_hash =
-		coi_contact_generate_hash(from_normalized, to_normalized);
+		coi_contact_generate_hash(from_normalized, lcrcpt->to_normalized);
 
 	string_t *token_string = t_str_new(128);
 	/* Append all of the token, except use empty secret. This way the
@@ -340,7 +343,7 @@ lmtp_coi_update_contact(struct coi_contact_transaction **coi_trans,
 			struct coi_contact *used_token_contact,
 			struct coi_token *used_token,
 			struct lmtp_coi_recipient *lcrcpt,
-			const char *from_normalized, const char *to_normalized)
+			const char *from_normalized)
 {
 	struct mail_storage *error_storage;
 	struct mailbox *contact_box;
@@ -355,7 +358,7 @@ lmtp_coi_update_contact(struct coi_contact_transaction **coi_trans,
 	   be race conditions. So find again the latest contact mail for the
 	   sender. */
 	if (coi_contact_list_find(*coi_trans, from_normalized,
-				  to_normalized, &latest_contact,
+				  lcrcpt->to_normalized, &latest_contact,
 				  &error_storage) < 0) {
 		i_error("Failed to lookup COI contact: %s",
 			mail_storage_get_last_internal_error(error_storage, NULL));
@@ -379,8 +382,7 @@ lmtp_coi_update_contact(struct coi_contact_transaction **coi_trans,
 		/* Temporary token was used and there isn't a permanent token
 		   yet. Generate a new permanent token. Note that from/to
 		   become swapped here. */
-		if (lmtp_generate_perm_token(lcrcpt, to_normalized,
-					     from_normalized, &latest_token))
+		if (lmtp_generate_perm_token(lcrcpt, from_normalized, &latest_token))
 			coi_contact_update_add_token_in(update, latest_token);
 	}
 	if (latest_token != NULL &&
@@ -394,7 +396,7 @@ lmtp_coi_update_contact(struct coi_contact_transaction **coi_trans,
 		/* Add/update stored MYSTOKEN if it has changed. */
 		latest_token = latest_contact == NULL ? NULL :
 			coi_contact_token_out_find_hash(latest_contact,
-				coi_contact_generate_hash(to_normalized, from_normalized));
+				coi_contact_generate_hash(lcrcpt->to_normalized, from_normalized));
 		if (latest_token == NULL ||
 		    strcmp(lcrcpt->my_token->token_string,
 			   latest_token->token_string) != 0)
@@ -433,7 +435,6 @@ lmtp_coi_verify_token(struct coi_context *coi_ctx,
 
 	const char *from_normalized =
 		coi_normalize_smtp_address(trans->mail_from);
-	const char *to_normalized = coi_normalize_smtp_address(rcpt->path);
 
 	contact_list = coi_contact_list_init_mailbox(contact_box);
 	coi_trans = coi_contact_transaction_begin(contact_list);
@@ -446,7 +447,7 @@ lmtp_coi_verify_token(struct coi_context *coi_ctx,
 		ret = 1;
 	} else {
 		ret = coi_contact_list_find_token(coi_trans,
-			from_normalized, to_normalized,
+			from_normalized, lcrcpt->to_normalized,
 			lcrcpt->token->token_string,
 			ioloop_time, &used_token_contact, &used_token,
 			&error_storage);
@@ -465,7 +466,7 @@ lmtp_coi_verify_token(struct coi_context *coi_ctx,
 		   if the provided MYSTOKEN differs from what we have stored. */
 		if (lmtp_coi_update_contact(&coi_trans, used_token_contact,
 					    used_token, lcrcpt,
-					    from_normalized, to_normalized) < 0) {
+					    from_normalized) < 0) {
 			/* Token updates failed, but it's not a fatal error.
 			   Don't return an error to the client. */
 		}
