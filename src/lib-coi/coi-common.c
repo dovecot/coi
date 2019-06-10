@@ -85,6 +85,11 @@ const char *coi_normalize_smtp_address(const struct smtp_address *address)
 {
 	struct smtp_address new_address;
 
+	if (address == NULL) {
+		/* address is <> */
+		return "";
+	}
+
 	i_zero(&new_address);
 	new_address.localpart = t_str_lcase(address->localpart);
 	new_address.domain = t_str_lcase(address->domain);
