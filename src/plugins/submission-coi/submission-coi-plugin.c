@@ -52,7 +52,7 @@ struct submission_coi_backend {
 		struct smtp_params_mail mail_params;
 	} trans_state;
 
-	bool have_coi:1;
+	bool have_stoken:1;
 };
 
 struct submission_coi_client {
@@ -71,7 +71,7 @@ struct submission_coi_client {
 		bool sync_enabled:1;
 	} trans_state;
 
-	bool lmtp_backend_have_coi:1;
+	bool lmtp_backend_have_stoken:1;
 };
 
 const char *submission_coi_plugin_version = DOVECOT_ABI_VERSION;
@@ -133,7 +133,7 @@ submission_coi_backend_ready(struct submission_backend *backend,
 	struct smtp_server_connection *sv_conn = client->conn;
 	struct smtp_server_transaction *sv_trans =
 		smtp_server_connection_get_transaction(sv_conn);
-	const struct smtp_capability_extra *cap_sync, *cap_coi;
+	const struct smtp_capability_extra *cap_stoken;
 
 	if (scbackend == scclient->lmtp_backend)
 		i_debug("coi: LMTP backend is ready");
@@ -142,18 +142,17 @@ submission_coi_backend_ready(struct submission_backend *backend,
 
 	/* The secondary backend is ready. We can now determine its
 	   capabilities */
-	cap_sync = smtp_client_connection_get_extra_capability(cl_conn, "SYNC");
-	cap_coi = smtp_client_connection_get_extra_capability(cl_conn, "COI");
-	scbackend->have_coi = (cap_sync != NULL && cap_coi != NULL);
+	cap_stoken = smtp_client_connection_get_extra_capability(cl_conn, "STOKEN");
+	scbackend->have_stoken = cap_stoken != NULL;
 
-	if (scbackend->have_coi) {
-		i_debug("coi: Backend supports COI");
+	if (scbackend->have_stoken) {
+		i_debug("coi: Backend supports STOKEN");
 		/* Enable sync behavior for client transaction */
 		(void)submission_backend_relay_init_transaction(
 			scbackend->relay,
 			SMTP_CLIENT_TRANSACTION_FLAG_REPLY_PER_RCPT);
 	} else {
-		i_debug("coi: Backend does not support COI");
+		i_debug("coi: Backend does not support STOKEN");
 		// FIXME: which should actually be an error
 	}
 
@@ -219,13 +218,13 @@ submission_coi_backend_trans_start(struct submission_backend *backend,
 		return;
 	}
 
-	if (scbackend->have_coi) {
-		i_debug("coi: Started backend transaction (with COI)");
+	if (scbackend->have_stoken) {
+		i_debug("coi: Started backend transaction (with STOKEN)");
 		smtp_params_mail_copy(pool, &new_params, params);
 		smtp_params_mail_add_extra(&new_params, pool, "SYNC", NULL);
 		params = &new_params;
 	} else {
-		i_debug("coi: Started backend transaction (without COI)");
+		i_debug("coi: Started backend transaction (without STOKEN)");
 	}
 
 	scbackend->super.trans_start(backend, trans, path, params);
@@ -263,8 +262,7 @@ submission_coi_backend_create(struct client *client,
 	scclient->backends = scbackend;
 
 	scbackend->conn = submission_backend_relay_get_connection(relay);
-	smtp_client_connection_accept_extra_capability(scbackend->conn, "SYNC");
-	smtp_client_connection_accept_extra_capability(scbackend->conn, "COI");
+	smtp_client_connection_accept_extra_capability(scbackend->conn, "STOKEN");
 
 	scbackend->super = backend->v;
 	backend->v.ready = submission_coi_backend_ready;
@@ -384,8 +382,8 @@ submission_coi_cmd_rcpt_continue(struct submission_coi_client *scclient,
 	i_debug("coi: RCPT command: Continue");
 
 	i_assert(scbackend != NULL);
-	if (scbackend->have_coi) {
-		i_debug("coi: RCPT command: COI enabled");
+	if (scbackend->have_stoken) {
+		i_debug("coi: RCPT command: STOKEN enabled");
 		// FIXME: probably some more logic here
 		// FIXME: just forwarding the tokens we got before.
 		smtp_params_rcpt_add_extra(&rcpt->params, rcpt->pool,
@@ -596,8 +594,7 @@ static void submission_coi_client_create(struct client *client)
 
 	scclient->coi_ctx = coi_context_init(client->user);
 
-	client_add_extra_capability(client, "SYNC", NULL); // FIXME: better name for this capability
-	client_add_extra_capability(client, "COI", NULL); // FIXME: better name for this protocol
+	client_add_extra_capability(client, "STOKEN", NULL);
 
 	smtp_server_connection_register_mail_param(client->conn, "SYNC"); // FIXME: better name for this parameter
 	smtp_server_connection_register_rcpt_param(client->conn, "STOKEN");
@@ -606,8 +603,7 @@ static void submission_coi_client_create(struct client *client)
 	backend = client->backend_default_relay;
 	if (backend != NULL) {
 		smtp_conn = submission_backend_relay_get_connection(backend);
-		smtp_client_connection_accept_extra_capability(smtp_conn, "SYNC");
-		smtp_client_connection_accept_extra_capability(smtp_conn, "COI");
+		smtp_client_connection_accept_extra_capability(smtp_conn, "STOKEN");
 	}
 }
 
