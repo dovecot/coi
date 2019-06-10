@@ -59,6 +59,7 @@ struct lmtp_coi_client {
 	struct coi_secret_settings secret_set;
 
 	struct {
+		char *from_normalized;
 		struct lmtp_coi_recipient *rcpts;
 	} trans_state;
 };
@@ -99,6 +100,7 @@ lmtp_coi_client_trans_free(struct client *client,
 
 	i_debug("coi: Transaction free");
 
+	i_free(lcclient->trans_state.from_normalized);
 	i_zero(&lcclient->trans_state);
 
 	lcclient->super.trans_free(client, trans);
@@ -113,7 +115,9 @@ lmtp_coi_client_cmd_mail(struct client *client,
 
 	i_debug("coi: MAIL command");
 
-	// FIXME: anything?
+	i_free(lcclient->trans_state.from_normalized);
+	lcclient->trans_state.from_normalized =
+		i_strdup(coi_normalize_smtp_address(data->path));
 
 	return lcclient->super.cmd_mail(client, cmd, data);
 }
@@ -301,7 +305,6 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 
 static bool
 lmtp_generate_perm_token(struct lmtp_coi_recipient *lcrcpt,
-			 const char *from_normalized,
 			 struct coi_token **token_r)
 {
 	struct lmtp_coi_client *lcclient =
@@ -317,7 +320,8 @@ lmtp_generate_perm_token(struct lmtp_coi_recipient *lcrcpt,
 	token = coi_token_new(pool_datastack_create());
 	token->validity_secs = COI_PERM_TOKEN_VALIDITY_SECS;
 	token->from_to_normalized_hash =
-		coi_contact_generate_hash(from_normalized, lcrcpt->to_normalized);
+		coi_contact_generate_hash(lcclient->trans_state.from_normalized,
+					  lcrcpt->to_normalized);
 
 	string_t *token_string = t_str_new(128);
 	/* Append all of the token, except use empty secret. This way the
@@ -382,7 +386,7 @@ lmtp_coi_update_contact(struct coi_contact_transaction **coi_trans,
 		/* Temporary token was used and there isn't a permanent token
 		   yet. Generate a new permanent token. Note that from/to
 		   become swapped here. */
-		if (lmtp_generate_perm_token(lcrcpt, from_normalized, &latest_token))
+		if (lmtp_generate_perm_token(lcrcpt, &latest_token))
 			coi_contact_update_add_token_in(update, latest_token);
 	}
 	if (latest_token != NULL &&
@@ -411,9 +415,9 @@ lmtp_coi_update_contact(struct coi_contact_transaction **coi_trans,
 }
 
 static int
-lmtp_coi_verify_token(struct coi_context *coi_ctx,
-		      struct lmtp_coi_recipient *lcrcpt,
-		      struct smtp_server_transaction *trans)
+lmtp_coi_verify_token(struct lmtp_coi_client *lcclient,
+		      struct coi_context *coi_ctx,
+		      struct lmtp_coi_recipient *lcrcpt)
 {
 	struct smtp_server_recipient *rcpt = lcrcpt->rcpt->rcpt;
 	struct mailbox *contact_box;
@@ -433,9 +437,6 @@ lmtp_coi_verify_token(struct coi_context *coi_ctx,
 		return -1;
 	}
 
-	const char *from_normalized =
-		coi_normalize_smtp_address(trans->mail_from);
-
 	contact_list = coi_contact_list_init_mailbox(contact_box);
 	coi_trans = coi_contact_transaction_begin(contact_list);
 	/* find the given token and make sure it's not expired */
@@ -447,7 +448,8 @@ lmtp_coi_verify_token(struct coi_context *coi_ctx,
 		ret = 1;
 	} else {
 		ret = coi_contact_list_find_token(coi_trans,
-			from_normalized, lcrcpt->to_normalized,
+			lcclient->trans_state.from_normalized,
+			lcrcpt->to_normalized,
 			lcrcpt->token->token_string,
 			ioloop_time, &used_token_contact, &used_token,
 			&error_storage);
@@ -466,7 +468,7 @@ lmtp_coi_verify_token(struct coi_context *coi_ctx,
 		   if the provided MYSTOKEN differs from what we have stored. */
 		if (lmtp_coi_update_contact(&coi_trans, used_token_contact,
 					    used_token, lcrcpt,
-					    from_normalized) < 0) {
+					    lcclient->trans_state.from_normalized) < 0) {
 			/* Token updates failed, but it's not a fatal error.
 			   Don't return an error to the client. */
 		}
@@ -526,7 +528,7 @@ lmtp_coi_client_local_deliver(struct client *client,
 	coi_ctx = coi_context_init(user);
 	if (lcrcpt != NULL) {
 		/* Do final STOKEN verification */
-		if (lmtp_coi_verify_token(coi_ctx, lcrcpt, trans) < 0)
+		if (lmtp_coi_verify_token(lcclient, coi_ctx, lcrcpt) < 0)
 			ret = -1;
 	}
 
