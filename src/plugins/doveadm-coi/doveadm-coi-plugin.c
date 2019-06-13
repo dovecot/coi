@@ -58,7 +58,7 @@ static const char *coi_settings_get_secret(const char *set_name)
 {
 	const char *value = doveadm_plugin_getenv(set_name);
 	if (value == NULL || value[0] == '\0')
-		i_fatal("%s setting is empty and -secret parameter not used", set_name);
+		i_fatal("%s setting is empty and --secret parameter not used", set_name);
 	return t_strcut(value, ' ');
 }
 
@@ -183,7 +183,7 @@ DOVEADM_CMD_PARAMS_END
 },
 {
 	.name = "coi token generate",
-	.usage = "[-temp | -secret <secret>] [-expires <time>] <from> <to>",
+	.usage = "[--temp | --secret <secret>] [--expires <time>] <from> <to>",
         .cmd = cmd_coi_token_generate,
 DOVEADM_CMD_PARAMS_START
 DOVEADM_CMD_PARAM('\0', "temp", CMD_PARAM_BOOL, 0)
@@ -195,7 +195,7 @@ DOVEADM_CMD_PARAMS_END
 },
 {
 	.name = "coi token verify",
-	.usage = "[-secret <secret>] [-time <unix timestamp>] <token> [<from> <to>]",
+	.usage = "[--secret <secret>] [--time <unix timestamp>] <token> [<from> <to>]",
         .cmd = cmd_coi_token_verify,
 DOVEADM_CMD_PARAMS_START
 DOVEADM_CMD_PARAM('\0', "secret", CMD_PARAM_STR, 0)
