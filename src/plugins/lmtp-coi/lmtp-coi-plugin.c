@@ -304,7 +304,8 @@ lmtp_generate_perm_token(struct lmtp_coi_recipient *lcrcpt,
 		LMTP_COI_CONTEXT(lcrcpt->rcpt->client);
 	struct coi_token *token;
 
-	if (lcclient->secret_set.perm_secrets[0] == NULL) {
+	if (lcclient->secret_set.perm_secrets == NULL ||
+	    lcclient->secret_set.perm_secrets[0] == NULL) {
 		*token_r = NULL;
 		return FALSE;
 	}
