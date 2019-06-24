@@ -53,7 +53,6 @@ struct coi_token *coi_token_new(pool_t pool)
 	struct coi_token *token;
 
 	token = p_new(pool, struct coi_token, 1);
-	token->create_time = time(NULL);
 	token->hash_algo = COI_HASH_ALGO_DEFAULT;
 	p_array_init(&token->options, pool, 4);
 	return token;
