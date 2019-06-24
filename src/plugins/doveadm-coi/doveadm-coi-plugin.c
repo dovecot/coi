@@ -69,6 +69,7 @@ static void cmd_coi_token_generate(struct doveadm_cmd_context *cctx)
 	bool temp;
 
 	token = coi_token_new(pool_datastack_create());
+	token->create_time = time(NULL);
 
 	if (!doveadm_cmd_param_str(cctx, "from", &from) ||
 	    !doveadm_cmd_param_str(cctx, "to", &to))

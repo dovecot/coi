@@ -327,6 +327,7 @@ lmtp_generate_perm_token(struct lmtp_coi_recipient *lcrcpt,
 	}
 
 	token = coi_token_new(pool_datastack_create());
+	token->create_time = time(NULL);
 	token->validity_secs = COI_PERM_TOKEN_VALIDITY_SECS;
 	token->from_to_normalized_hash =
 		coi_contact_generate_hash(lcclient->trans_state.from_normalized,
