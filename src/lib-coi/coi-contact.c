@@ -165,6 +165,8 @@ int coi_contact_parse(struct mail *mail, struct coi_contact **contact_r)
 
 	contact = p_new(pmail->data_pool, struct coi_contact, 1);
 	contact->mail = mail;
+	p_array_init(&contact->tokens_in, pmail->data_pool, 8);
+	p_array_init(&contact->tokens_out, pmail->data_pool, 8);
 
 	if (coi_contact_parse_headers(contact, COI_HDR_TOKEN_IN,
 				      &contact->tokens_in) < 0)
