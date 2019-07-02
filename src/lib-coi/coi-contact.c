@@ -14,6 +14,8 @@
 
 #include <time.h>
 
+#define COI_TOKEN_CREATE_TIME_MAX_SECS_IN_FUTURE (60*60*24)
+
 /* Characters that must not exist in the COI-Token header's fields.
    The '-' character is a separator between fields. */
 #define COI_TOKEN_DISALLOWED_CHARS "-\r\n"
@@ -604,6 +606,27 @@ void coi_contact_update_abort(struct coi_contact_update **_update)
 
 	*_update = NULL;
 	pool_unref(&update->pool);
+}
+
+bool coi_token_verify_validity(const struct coi_token *token,
+			       time_t timestamp, const char **reason_r)
+{
+	if (timestamp < token->create_time) {
+		/* Creation time in the future. I guess we can allow this,
+		   since everybody's clocks aren't synced. But just for some
+		   sanity we only allow 1 day into the future. */
+		if (token->create_time - timestamp > COI_TOKEN_CREATE_TIME_MAX_SECS_IN_FUTURE) {
+			*reason_r = "Create timestamp is in the future";
+			return FALSE;
+		}
+		return TRUE;
+	}
+	if (timestamp - token->create_time > token->validity_secs) {
+		/* token already expired */
+		*reason_r = "Token is expired";
+		return FALSE;
+	}
+	return TRUE;
 }
 
 bool coi_token_verify_quick(const struct coi_secret_settings *set, time_t now,

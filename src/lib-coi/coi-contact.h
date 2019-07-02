@@ -124,6 +124,10 @@ void coi_contact_update_try_merge(struct coi_contact_update *update,
 /* Abort the update. */
 void coi_contact_update_abort(struct coi_contact_update **update);
 
+/* Returns TRUE if token's create_time and validity is valid within the given
+   timestamp. If not, return FALSE and reason for why it's not valid. */
+bool coi_token_verify_validity(const struct coi_token *token,
+			       time_t timestamp, const char **reason_r);
 bool coi_token_verify_quick(const struct coi_secret_settings *set, time_t now,
 			    const struct coi_token *token, bool *temp_r,
 			    const char **error_r);
