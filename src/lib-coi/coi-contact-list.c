@@ -175,6 +175,8 @@ int coi_contact_list_find_token(struct coi_contact_transaction *trans,
 				struct coi_token **token_r,
 				struct mail_storage **error_storage_r)
 {
+	const char *reason;
+
 	if (coi_contact_list_find_full(trans, from_normalized, to_normalized,
 				       token, contact_r, token_r,
 				       error_storage_r) < 0)
@@ -182,19 +184,7 @@ int coi_contact_list_find_token(struct coi_contact_transaction *trans,
 	if (*token_r == NULL)
 		return 0;
 
-	if (timestamp < (*token_r)->create_time) {
-		/* Creation time in the future. I guess we can allow this,
-		   since everybody's clocks aren't synced. But just for some
-		   sanity we only allow 1 day into the future. */
-		if ((*token_r)->create_time - timestamp > 60*60*24)
-			return 0;
-		return 1;
-	}
-	if (timestamp - (*token_r)->create_time > (*token_r)->validity_secs) {
-		/* token already expired */
-		return 0;
-	}
-	return 1;
+	return coi_token_verify_validity(*token_r, timestamp, &reason) ? 1 : 0;
 }
 
 static void

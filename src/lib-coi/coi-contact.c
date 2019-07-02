@@ -633,15 +633,8 @@ bool coi_token_verify_quick(const struct coi_secret_settings *set, time_t now,
 			    const struct coi_token *token, bool *temp_r,
 			    const char **error_r)
 {
-	/* FIXME: should we allow timestamps that are a bit into the future? */
-	if (token->create_time > now) {
-		*error_r = "Create timestamp is in the future";
+	if (!coi_token_verify_validity(token, now, error_r))
 		return FALSE;
-	}
-	if (now - token->create_time > token->validity_secs) {
-		*error_r = "Token is expired";
-		return FALSE;
-	}
 
 	switch (coi_secret_verify(set, token)) {
 	case COI_SECRET_RESULT_NOTFOUND:
