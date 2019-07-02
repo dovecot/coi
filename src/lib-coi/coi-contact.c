@@ -83,9 +83,14 @@ int coi_token_parse(const char *token_string, pool_t pool,
 			key = args[i];
 			value = "";
 		}
-		if (strcmp(key, COI_TOKEN_FIELD_HASH_SECRET) == 0)
+		if (strcmp(key, COI_TOKEN_FIELD_HASH_SECRET) == 0) {
+			if (value[0] == '\0') {
+				*error_r = t_strdup_printf(
+					"Invalid '%s': Value is empty", key);
+				return -1;
+			}
 			token->secret = p_strdup(pool, value);
-		else if (strcmp(key, COI_TOKEN_FIELD_CREATED) == 0) {
+		} else if (strcmp(key, COI_TOKEN_FIELD_CREATED) == 0) {
 			if (str_to_time(value, &token->create_time) < 0 ||
 			    token->create_time <= 0) {
 				*error_r = t_strdup_printf(
@@ -100,6 +105,11 @@ int coi_token_parse(const char *token_string, pool_t pool,
 				return -1;
 			}
 		} else if (strcmp(key, COI_TOKEN_FIELD_HASH) == 0) {
+			if (value[0] == '\0') {
+				*error_r = t_strdup_printf(
+					"Invalid '%s': Value is empty", key);
+				return -1;
+			}
 			token->from_to_normalized_hash = p_strdup(pool, value);
 		} else if (strcmp(key, COI_TOKEN_FIELD_HASH_ALGO) == 0) {
 			if (strcmp(key, "sha3-256") == 0)
