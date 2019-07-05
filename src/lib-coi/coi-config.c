@@ -36,8 +36,8 @@ static int coi_config_try_read(struct mailbox *box, struct coi_config *config_r)
 		ret = coi_config_storage_error(box);
 	else if (strcmp(value, "active") == 0)
 		config_r->filter = COI_CONFIG_FILTER_ACTIVE;
-	else if (strcmp(value, "read") == 0)
-		config_r->filter = COI_CONFIG_FILTER_READ;
+	else if (strcmp(value, "seen") == 0)
+		config_r->filter = COI_CONFIG_FILTER_SEEN;
 	else
 		config_r->filter = COI_CONFIG_FILTER_NONE;
 

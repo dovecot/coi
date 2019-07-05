@@ -9,7 +9,7 @@ enum coi_config_filter {
 	/* Move chat mails to Chats folder */
 	COI_CONFIG_FILTER_ACTIVE,
 	/* Move chat mails to Chats folder when \Seen flag is set */
-	COI_CONFIG_FILTER_READ,
+	COI_CONFIG_FILTER_SEEN,
 };
 
 struct coi_config {

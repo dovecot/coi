@@ -254,7 +254,7 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 		return 1;
 	case COI_CONFIG_FILTER_ACTIVE:
 		break;
-	case COI_CONFIG_FILTER_READ: {
+	case COI_CONFIG_FILTER_SEEN: {
 		/* For now store to INBOX, but move to Chats when \Seen flag
 		   is set. Add $HasChat keyword so IMAP plugin can do this
 		   efficiently. */
