@@ -97,10 +97,6 @@ const char *coi_normalize_smtp_address(const struct smtp_address *address)
 	return smtp_address_encode(&new_address);
 }
 
-/*
- * Chats mailbox
- */
-
 const char *
 coi_mailbox_get_name(struct coi_context *coi_ctx, const char *base_name)
 {
