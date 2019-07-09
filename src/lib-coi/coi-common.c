@@ -12,6 +12,7 @@
 #include "smtp-address.h"
 
 #include "coi-common.h"
+#include "coi-config.h"
 
 /* All COI chat messages have Message-ID with this prefix */
 #define COI_CHAT_MSGID_PREFIX "chat$"
@@ -41,6 +42,8 @@ static void coi_context_parse_settings(struct coi_context *coi_ctx)
 	}
 	coi_ctx->root_box_name = p_strdup(coi_ctx->pool, root_box_name);
 	coi_ctx->root_ns = ns;
+
+	coi_config_init_context(coi_ctx);
 }
 
 struct coi_context *

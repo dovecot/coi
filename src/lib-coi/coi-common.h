@@ -50,6 +50,8 @@ struct coi_context {
 	struct mail_namespace *root_ns;
 
 	bool coi_trust_msgid_prefix;
+
+	uint32_t list_index_ext_id;
 };
 
 struct coi_context *

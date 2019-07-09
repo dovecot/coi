@@ -18,4 +18,6 @@ struct coi_config {
 
 int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r);
 
+void coi_config_init_context(struct coi_context *coi_ctx);
+
 #endif
