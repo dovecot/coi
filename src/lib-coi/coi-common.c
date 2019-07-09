@@ -124,7 +124,6 @@ int coi_mailbox_open(struct coi_context *coi_ctx, const char *base_name,
 
 	*box_r = NULL;
 
-	flags |= MAILBOX_FLAG_AUTO_CREATE;
 	box = *box_r = mailbox_alloc(coi_ctx->root_ns->list,
 		coi_mailbox_get_name(coi_ctx, base_name), flags);
 	*storage_r = mailbox_get_storage(box);
