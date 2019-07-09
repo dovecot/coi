@@ -57,6 +57,8 @@ coi_context_init(struct mail_user *user) ATTR_NULL(2);
 void coi_context_deinit(struct coi_context **_coi_ctx);
 
 const char *coi_get_mailbox_root(struct coi_context *coi_ctx);
+const char *
+coi_mailbox_get_name(struct coi_context *coi_ctx, const char *base_name);
 const char *coi_normalize_smtp_address(const struct smtp_address *address);
 
 /* Open a COI mailbox. base_name should be one of the COI_MAILBOX_* macros.

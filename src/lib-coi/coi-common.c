@@ -101,7 +101,7 @@ const char *coi_normalize_smtp_address(const struct smtp_address *address)
  * Chats mailbox
  */
 
-static const char *
+const char *
 coi_mailbox_get_name(struct coi_context *coi_ctx, const char *base_name)
 {
 	string_t *name;
