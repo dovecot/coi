@@ -6,11 +6,6 @@
 
 #define MAX_EXPUNGE_RETRIES 10
 
-static int coi_config_storage_error(struct mailbox *box)
-{
-	return mailbox_get_last_mail_error(box) == MAIL_ERROR_EXPUNGED ? -1 : 0;
-}
-
 static int coi_config_try_read(struct mailbox *box, struct coi_config *config_r)
 {
 	struct mailbox_transaction_context *trans;
@@ -33,7 +28,7 @@ static int coi_config_try_read(struct mailbox *box, struct coi_config *config_r)
 	mail_set_seq(mail, status.messages);
 
 	if (mail_get_first_header(mail, "COI-Message-Filter", &value) < 0)
-		ret = coi_config_storage_error(box);
+		ret = -1;
 	else if (strcmp(value, "active") == 0)
 		config_r->filter = COI_CONFIG_FILTER_ACTIVE;
 	else if (strcmp(value, "seen") == 0)
@@ -62,11 +57,15 @@ int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r)
 		return 0;
 	}
 
-	for (int i = 0, ret = 0; i < MAX_EXPUNGE_RETRIES && ret == 0; i++) {
+	for (int i = 0; i < MAX_EXPUNGE_RETRIES; i++) {
 		i_zero(config_r);
 		ret = coi_config_try_read(box, config_r);
+		if (ret >= 0 ||
+		    mailbox_get_last_mail_error(box) != MAIL_ERROR_EXPUNGED)
+			break;
+		/* configuration mail was just expunged - retry */
 	}
-	if (ret <= 0) {
+	if (ret < 0) {
 		e_error(coi_ctx->user->event,
 			"Failed to read COI configuration: %s",
 			mailbox_get_last_internal_error(box, NULL));
