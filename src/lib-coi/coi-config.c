@@ -4,6 +4,8 @@
 #include "coi-common.h"
 #include "coi-config.h"
 
+#include "mail-storage-private.h"
+
 #define MAX_EXPUNGE_RETRIES 10
 
 static int coi_config_try_read(struct mailbox *box, struct coi_config *config_r)
@@ -44,17 +46,27 @@ static int coi_config_try_read(struct mailbox *box, struct coi_config *config_r)
 int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r)
 {
 	struct mailbox *box;
-	struct mail_storage *storage;
 	int ret;
 
-	ret = coi_mailbox_open(coi_ctx, COI_MAILBOX_CONFIGURATION, 0,
-			       &box, &storage);
-	if (ret < 0)
-		return -1;
-	if (ret == 0) {
-		/* no configuration mailbox - use defaults */
-		i_zero(config_r);
-		return 0;
+	box = mailbox_alloc(coi_ctx->root_ns->list,
+		coi_mailbox_get_name(coi_ctx, COI_MAILBOX_CONFIGURATION), 0);
+
+	if (mailbox_open(box) < 0) {
+		enum mail_error error;
+		const char *errstr;
+
+		errstr = mailbox_get_last_internal_error(box, &error);
+		if (error != MAIL_ERROR_NOTFOUND) {
+			e_error(box->event,
+				"COI: Failed to open mailbox: %s", errstr);
+			ret = -1;
+		} else {
+			/* no configuration mailbox - use defaults */
+			i_zero(config_r);
+			ret = 0;
+		}
+		mailbox_free(&box);
+		return ret;
 	}
 
 	for (int i = 0; i < MAX_EXPUNGE_RETRIES; i++) {
