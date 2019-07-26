@@ -127,6 +127,17 @@ coi_attribute_config_message_filter(struct mailbox_transaction_context *t,
 	return 0;
 }
 
+static int
+coi_attribute_config_mailbox_root(struct mailbox *box,
+				  const char *key ATTR_UNUSED,
+				  struct mail_attribute_value *value_r)
+{
+	struct coi_context *coi_ctx = coi_get_user_context(box->storage->user);
+
+	value_r->value = coi_get_mailbox_root(coi_ctx);
+	return 1;
+}
+
 static const struct mailbox_attribute_internal
 iattr_coi_config_enabled = {
 	.type = MAIL_ATTRIBUTE_TYPE_PRIVATE,
@@ -149,6 +160,17 @@ iattr_coi_config_message_filter = {
 	.set = coi_attribute_config_message_filter
 };
 
+static const struct mailbox_attribute_internal
+iattr_coi_config_mailbox_root = {
+	.type = MAIL_ATTRIBUTE_TYPE_PRIVATE,
+	.key = MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT_SERVER
+		MAILBOX_ATTRIBUTE_COI_CONFIG_MAILBOX_ROOT,
+	.rank = MAIL_ATTRIBUTE_INTERNAL_RANK_AUTHORITY,
+	.flags = MAIL_ATTRIBUTE_INTERNAL_FLAG_VALIDATED,
+
+	.get = coi_attribute_config_mailbox_root
+};
+
 void coi_config_global_init(void)
 {
 	static bool initialized = FALSE;
@@ -159,4 +181,5 @@ void coi_config_global_init(void)
 
 	mailbox_attribute_register_internal(&iattr_coi_config_enabled);
 	mailbox_attribute_register_internal(&iattr_coi_config_message_filter);
+	mailbox_attribute_register_internal(&iattr_coi_config_mailbox_root);
 }
