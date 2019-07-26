@@ -1,6 +1,18 @@
 #ifndef COI_CONFIG_H
 #define COI_CONFIG_H
 
+#include "imap-metadata.h"
+
+#define MAILBOX_ATTRIBUTE_COI_CONFIG_PREFIX \
+	MAILBOX_ATTRIBUTE_COI_PREFIX"config/"
+
+#define MAILBOX_ATTRIBUTE_COI_CONFIG_ENABLED \
+	MAILBOX_ATTRIBUTE_COI_CONFIG_PREFIX"enabled"
+#define MAILBOX_ATTRIBUTE_COI_CONFIG_MAILBOX_ROOT \
+	MAILBOX_ATTRIBUTE_COI_CONFIG_PREFIX"mailbox-root"
+#define MAILBOX_ATTRIBUTE_COI_CONFIG_MESSAGE_FILTER \
+	MAILBOX_ATTRIBUTE_COI_CONFIG_PREFIX"message-filter"
+
 struct coi_context;
 
 enum coi_config_filter {
@@ -16,8 +28,8 @@ struct coi_config {
 	enum coi_config_filter filter;
 };
 
-int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r);
+bool coi_config_filter_parse(const char *str, enum coi_config_filter *filter_r);
 
-void coi_config_init_context(struct coi_context *coi_ctx);
+int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r);
 
 #endif

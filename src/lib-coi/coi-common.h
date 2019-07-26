@@ -36,6 +36,8 @@
 
 #define COI_PERM_TOKEN_VALIDITY_SECS (3600*24*365) /* FIXME: move to setting */
 
+#define MAILBOX_ATTRIBUTE_COI_PREFIX "vendor/vendor.dovecot/coi/"
+
 /*
  * COI context
  */
