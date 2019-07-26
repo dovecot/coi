@@ -32,4 +32,6 @@ bool coi_config_filter_parse(const char *str, enum coi_config_filter *filter_r);
 
 int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r);
 
+void coi_config_global_init(void);
+
 #endif

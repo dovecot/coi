@@ -4,6 +4,8 @@
 #include "coi-common.h"
 #include "coi-config.h"
 #include "imap-metadata.h"
+#include "mail-storage-private.h"
+#include "mailbox-attribute-private.h"
 
 static const char *filter_names[COI_CONFIG_FILTER_SEEN+1] = {
 	"none",
@@ -87,4 +89,74 @@ int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r)
 
 	(void)imap_metadata_transaction_commit(&trans, &error, &client_error);
 	return ret;
+}
+
+static int
+coi_attribute_config_enabled_set(struct mailbox_transaction_context *t,
+				 const char *key ATTR_UNUSED,
+				 const struct mail_attribute_value *value)
+{
+	const char *str;
+
+	if (mailbox_attribute_value_to_string(t->box->storage, value, &str) < 0)
+		return -1;
+	if (strcmp(str, "yes") != 0 &&
+	    strcmp(str, "no") != 0) {
+		mail_storage_set_error(t->box->storage, MAIL_ERROR_PARAMS,
+				       "Invalid enabled value. Must be yes or no.");
+		return -1;
+	}
+	return 0;
+}
+
+static int
+coi_attribute_config_message_filter(struct mailbox_transaction_context *t,
+				    const char *key ATTR_UNUSED,
+				    const struct mail_attribute_value *value)
+{
+	const char *str;
+	enum coi_config_filter filter;
+
+	if (mailbox_attribute_value_to_string(t->box->storage, value, &str) < 0)
+		return -1;
+	if (!coi_config_filter_parse(str, &filter)) {
+		mail_storage_set_error(t->box->storage, MAIL_ERROR_PARAMS,
+				       "Invalid message-filter value");
+		return -1;
+	}
+	return 0;
+}
+
+static const struct mailbox_attribute_internal
+iattr_coi_config_enabled = {
+	.type = MAIL_ATTRIBUTE_TYPE_PRIVATE,
+	.key = MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT_SERVER
+		MAILBOX_ATTRIBUTE_COI_CONFIG_ENABLED,
+	.rank = MAIL_ATTRIBUTE_INTERNAL_RANK_OVERRIDE,
+	.flags = MAIL_ATTRIBUTE_INTERNAL_FLAG_VALIDATED,
+
+	.set = coi_attribute_config_enabled_set
+};
+
+static const struct mailbox_attribute_internal
+iattr_coi_config_message_filter = {
+	.type = MAIL_ATTRIBUTE_TYPE_PRIVATE,
+	.key = MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT_SERVER
+		MAILBOX_ATTRIBUTE_COI_CONFIG_MESSAGE_FILTER,
+	.rank = MAIL_ATTRIBUTE_INTERNAL_RANK_OVERRIDE,
+	.flags = MAIL_ATTRIBUTE_INTERNAL_FLAG_VALIDATED,
+
+	.set = coi_attribute_config_message_filter
+};
+
+void coi_config_global_init(void)
+{
+	static bool initialized = FALSE;
+
+	if (initialized)
+		return;
+	initialized = TRUE;
+
+	mailbox_attribute_register_internal(&iattr_coi_config_enabled);
+	mailbox_attribute_register_internal(&iattr_coi_config_message_filter);
 }

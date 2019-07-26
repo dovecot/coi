@@ -51,6 +51,8 @@ coi_context_init(struct mail_user *user)
 	void **sets;
 	pool_t pool;
 
+	coi_config_global_init();
+
 	pool = pool_alloconly_create("coi context", 2048);
 	coi_ctx = p_new(pool, struct coi_context, 1);
 	coi_ctx->pool = pool;
