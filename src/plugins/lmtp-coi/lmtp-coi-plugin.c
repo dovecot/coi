@@ -237,6 +237,9 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 			   const char **client_error_r)
 {
 	struct smtp_server_recipient *rcpt = lrcpt->rcpt;
+	struct mail_private *pmail =
+		container_of(lldctx->src_mail, struct mail_private, mail);
+	struct lmtp_coi_mail *lcmail = LMTP_COI_MAIL_CONTEXT(pmail);
 	enum mailbox_transaction_flags trans_flags;
 	struct mailbox_transaction_context *mtrans;
 	struct mail_save_context *save_ctx;
@@ -244,6 +247,17 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 	struct mail_storage *storage;
 	struct coi_config config;
 	int ret = 0;
+
+	if (lcmail == NULL) {
+		lcmail = p_new(pmail->pool, struct lmtp_coi_mail, 1);
+		MODULE_CONTEXT_SET(pmail, lmtp_coi_mail_module, lcmail);
+	}
+	/* Add $HasChat keyword to all chat mails. This way:
+	   1) With filter=none clients can easily differentiate mails in INBOX
+	   whether they are chats or not.
+	   2) With filter=seen the server can move mails to Chats mailbox
+	   3) Push-notifications can see whether the mail is a chat or not. */
+	lcmail->add_has_chat_flag = TRUE;
 
 	if (coi_config_read(coi_ctx, &config) < 0) {
 		*client_error_r = "Failed to read COI configuration";
@@ -255,21 +269,10 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 		return 1;
 	case COI_CONFIG_FILTER_ACTIVE:
 		break;
-	case COI_CONFIG_FILTER_SEEN: {
+	case COI_CONFIG_FILTER_SEEN:
 		/* For now store to INBOX, but move to Chats when \Seen flag
-		   is set. Add $HasChat keyword so IMAP plugin can do this
-		   efficiently. */
-		struct mail_private *pmail =
-			container_of(lldctx->src_mail, struct mail_private, mail);
-		struct lmtp_coi_mail *lcmail = LMTP_COI_MAIL_CONTEXT(pmail);
-
-		if (lcmail == NULL) {
-			lcmail = p_new(pmail->pool, struct lmtp_coi_mail, 1);
-			MODULE_CONTEXT_SET(pmail, lmtp_coi_mail_module, lcmail);
-		}
-		lcmail->add_has_chat_flag = TRUE;
+		   is set. */
 		return 1;
-	}
 	}
 
 	if (coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS,
