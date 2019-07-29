@@ -16,6 +16,7 @@
 #include "coi-common.h"
 #include "coi-contact.h"
 #include "coi-secret.h"
+#include "coi-storage.h"
 
 #define LMTP_SOCKET_NAME "lmtp"
 
@@ -71,8 +72,6 @@ struct submission_coi_client {
 	struct submission_coi_backend *backends;
 	struct submission_coi_backend *lmtp_backend;
 
-	struct coi_context *coi_ctx;
-
 	struct {
 		char *from_normalized;
 		struct submission_coi_recipient *rcpts;
@@ -109,8 +108,6 @@ submission_coi_client_destroy(struct client *client, const char *prefix,
 			      const char *reason)
 {
 	struct submission_coi_client *scclient = SUBMISSION_COI_CONTEXT(client);
-
-	coi_context_deinit(&scclient->coi_ctx);
 
 	scclient->super.destroy(client, prefix, reason);
 }
@@ -647,16 +644,17 @@ submission_coi_client_cmd_data(struct client *client,
 			       struct istream *data_input, uoff_t data_size)
 {
 	struct submission_coi_client *scclient = SUBMISSION_COI_CONTEXT(client);
+	struct coi_context *coi_ctx = coi_get_user_context(client->user);
 	struct coi_raw_mail *coi_mail;
 
 	/* Make sure data input stream is at the beginning (other plugins may
 	   have messed with it. */
 	i_stream_seek(data_input, 0);
 
-	if (coi_raw_mail_open(scclient->coi_ctx, trans->mail_from,
+	if (coi_raw_mail_open(coi_ctx, trans->mail_from,
 			      data_input, &coi_mail) == 0) {
 		submission_coi_client_store_chat(scclient, trans,
-						 scclient->coi_ctx, coi_mail);
+						 coi_ctx, coi_mail);
 		coi_raw_mail_close(&coi_mail);
 	}
 
@@ -682,8 +680,6 @@ static void submission_coi_client_create(struct client *client)
 	client->v.cmd_mail = submission_coi_client_cmd_mail;
 	client->v.cmd_rcpt = submission_coi_client_cmd_rcpt;
 	client->v.cmd_data = submission_coi_client_cmd_data;
-
-	scclient->coi_ctx = coi_context_init(client->user);
 
 	coi_secret_settings_init(&scclient->secret_set, client->pool,
 		mail_user_set_plugin_getenv(client->user->set, COI_SETTING_TOKEN_TEMP_SECRETS),
@@ -719,11 +715,13 @@ void submission_coi_plugin_init(struct module *module)
 	next_hook_client_created =
 		submission_client_created_hook_set(
 			submission_coi_client_created);
+	coi_storage_plugin_init(module);
 }
 
 void submission_coi_plugin_deinit(void)
 {
 	submission_client_created_hook_set(next_hook_client_created);
+	coi_storage_plugin_deinit();
 }
 
 const char *submission_coi_plugin_dependencies[] = { NULL };
