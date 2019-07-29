@@ -48,7 +48,6 @@ struct coi_context *
 coi_context_init(struct mail_user *user)
 {
 	struct coi_context *coi_ctx;
-	void **sets;
 	pool_t pool;
 
 	coi_config_global_init();
@@ -59,11 +58,19 @@ coi_context_init(struct mail_user *user)
 	coi_ctx->user = user;
 	coi_context_parse_settings(coi_ctx);
 
+	return coi_ctx;
+}
+
+static void coi_context_get_raw_mail_user(struct coi_context *coi_ctx)
+{
+	void **sets;
+
+	if (coi_ctx->raw_mail_user != NULL)
+		return;
+
 	sets = master_service_settings_get_others(master_service);
 	coi_ctx->raw_mail_user =
-		raw_storage_create_from_set(user->set_info, sets[0]);
-
-	return coi_ctx;
+		raw_storage_create_from_set(coi_ctx->user->set_info, sets[0]);
 }
 
 void coi_context_deinit(struct coi_context **_coi_ctx)
@@ -75,7 +82,8 @@ void coi_context_deinit(struct coi_context **_coi_ctx)
 	if (coi_ctx == NULL)
 		return;
 
-	mail_user_unref(&coi_ctx->raw_mail_user);
+	if (coi_ctx->raw_mail_user != NULL)
+		mail_user_unref(&coi_ctx->raw_mail_user);
 	pool_unref(&coi_ctx->pool);
 }
 
@@ -285,6 +293,7 @@ int coi_raw_mail_open(struct coi_context *coi_ctx,
 
 	*coi_mail_r = NULL;
 
+	coi_context_get_raw_mail_user(coi_ctx);
 	if (raw_mailbox_alloc_stream(coi_ctx->raw_mail_user, msg_input,
 				     (time_t)-1, smtp_address_encode(mail_from),
 				     &box) < 0) {
