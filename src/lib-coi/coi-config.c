@@ -92,6 +92,39 @@ int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r)
 }
 
 static int
+coi_create_missing_mailbox(struct mail_user *user, const char *base_name,
+			   bool subscribe)
+{
+	struct coi_context *coi_ctx = coi_get_user_context(user);
+	struct mailbox *box;
+	const char *name = coi_mailbox_get_name(coi_ctx, base_name);
+	int ret;
+
+	box = mailbox_alloc(coi_ctx->root_ns->list, name, 0);
+	mailbox_set_reason(box, "Enabling COI autocreates");
+	if ((ret = mailbox_create(box, NULL, FALSE)) < 0)
+		i_error("coi: Failed to create mailbox %s: %s", name,
+			mailbox_get_last_error(box, NULL));
+	else if (!subscribe)
+		;
+	else if ((ret = mailbox_set_subscribed(box, TRUE)) < 0) {
+		i_error("coi: Failed to subscribe to mailbox %s: %s", name,
+			mailbox_get_last_error(box, NULL));
+	}
+	mailbox_free(&box);
+	return ret;
+}
+
+static int coi_create_missing_mailboxes(struct mail_user *user)
+{
+	if (coi_create_missing_mailbox(user, COI_MAILBOX_CONTACTS, FALSE) < 0)
+		return -1;
+	if (coi_create_missing_mailbox(user, COI_MAILBOX_CHATS, TRUE) < 0)
+		return -1;
+	return 0;
+}
+
+static int
 coi_attribute_config_enabled_set(struct mailbox_transaction_context *t,
 				 const char *key ATTR_UNUSED,
 				 const struct mail_attribute_value *value)
@@ -100,8 +133,10 @@ coi_attribute_config_enabled_set(struct mailbox_transaction_context *t,
 
 	if (mailbox_attribute_value_to_string(t->box->storage, value, &str) < 0)
 		return -1;
-	if (strcmp(str, "yes") != 0 &&
-	    strcmp(str, "no") != 0) {
+	if (strcmp(str, "yes") == 0) {
+		if (coi_create_missing_mailboxes(t->box->storage->user) < 0)
+			return -1;
+	} else if (strcmp(str, "no") != 0) {
 		mail_storage_set_error(t->box->storage, MAIL_ERROR_PARAMS,
 				       "Invalid enabled value. Must be yes or no.");
 		return -1;
