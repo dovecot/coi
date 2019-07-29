@@ -60,6 +60,8 @@ struct coi_context *
 coi_context_init(struct mail_user *user) ATTR_NULL(2);
 void coi_context_deinit(struct coi_context **_coi_ctx);
 
+struct coi_context *coi_get_user_context(struct mail_user *user);
+
 const char *coi_get_mailbox_root(struct coi_context *coi_ctx);
 const char *
 coi_mailbox_get_name(struct coi_context *coi_ctx, const char *base_name);

@@ -18,14 +18,16 @@ libdovecot_coi_la_SOURCES = \
 	coi-config.c \
 	coi-contact.c \
 	coi-contact-list.c \
-	coi-secret.c
+	coi-secret.c \
+	coi-storage.c
 
 headers = \
 	coi-common.h \
 	coi-config.h \
 	coi-contact.h \
 	coi-contact-list.h \
-	coi-secret.h
+	coi-secret.h \
+	coi-storage.h
 
 pkginc_libdir=$(dovecot_pkgincludedir)
 pkginc_lib_HEADERS = $(headers)
