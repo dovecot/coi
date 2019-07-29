@@ -6,6 +6,7 @@
 #include "mail-search-build.h"
 #include "coi-common.h"
 #include "coi-storage.h"
+#include "coi-config.h"
 #include "mail-storage-private.h"
 #include "imap-feature.h"
 #include "imap-coi-plugin.h"
@@ -97,9 +98,17 @@ imap_coi_move_mails(struct mailbox *box,
 	struct mail_search_context *search_ctx;
 	struct mail_save_context *save_ctx;
 	struct mail *mail;
+	struct coi_config config;
 	int ret = 0;
 
 	if (array_count(&ictrans->move_uids) == 0)
+		return 0;
+
+	/* do the moving only if the current filtering rule is "seen" (we could
+	   have checked it earlier also, but it's simpler here..) */
+	if (coi_config_read(coi_ctx, &config) < 0)
+		return -1;
+	if (config.filter != COI_CONFIG_FILTER_SEEN)
 		return 0;
 
 	if (coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS,
