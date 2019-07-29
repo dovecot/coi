@@ -8,6 +8,7 @@
 #include "smtp-address.h"
 #include "lmtp-recipient.h"
 #include "mail-storage-private.h"
+#include "coi-storage.h"
 #include "coi-secret.h"
 #include "coi-contact.h"
 #include "coi-contact-list.h"
@@ -529,13 +530,12 @@ lmtp_coi_client_local_deliver(struct client *client,
 {
 	struct lmtp_coi_client *lcclient = LMTP_COI_CONTEXT(client);
 	struct lmtp_coi_recipient *lcrcpt = LMTP_COI_RCPT_CONTEXT(lrcpt);
-	struct coi_context *coi_ctx = NULL;
 	struct smtp_server_recipient *rcpt = lrcpt->rcpt;
 	struct mail_user *user = lldctx->rcpt_user;
+	struct coi_context *coi_ctx = coi_get_user_context(user);
 	const char *header, *client_error;
 	int ret = 1;
 
-	coi_ctx = coi_context_init(user);
 	if (lcrcpt != NULL) {
 		/* Do final STOKEN verification */
 		if (lmtp_coi_verify_token(lcclient, coi_ctx, lcrcpt) < 0)
@@ -558,7 +558,6 @@ lmtp_coi_client_local_deliver(struct client *client,
 	} else {
 		ret = 1;
 	}
-	coi_context_deinit(&coi_ctx);
 
 	return ret <= 0 ? ret :
 		lcclient->super.local_deliver(client, lrcpt, cmd, trans, lldctx);
@@ -657,6 +656,7 @@ void lmtp_coi_plugin_init(struct module *module)
 		lmtp_client_created_hook_set(
 			lmtp_coi_client_created);
 	mail_storage_hooks_add(module, &lmtp_coi_mail_storage_hooks);
+	coi_storage_plugin_init(module);
 }
 
 void lmtp_coi_plugin_deinit(void)
@@ -665,6 +665,7 @@ void lmtp_coi_plugin_deinit(void)
 
 	lmtp_client_created_hook_set(next_hook_client_created);
 	mail_storage_hooks_remove(&lmtp_coi_mail_storage_hooks);
+	coi_storage_plugin_deinit();
 }
 
 const char *lmtp_coi_plugin_dependencies[] = { NULL };
