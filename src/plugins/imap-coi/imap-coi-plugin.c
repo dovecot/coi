@@ -5,14 +5,11 @@
 #include "mail-storage-private.h"
 #include "mail-search-build.h"
 #include "coi-common.h"
+#include "coi-storage.h"
 #include "mail-storage-private.h"
 #include "imap-feature.h"
 #include "imap-coi-plugin.h"
 
-#define IMAP_COI_USER_CONTEXT(obj) \
-	MODULE_CONTEXT(obj, imap_coi_user_module)
-#define IMAP_COI_USER_CONTEXT_REQUIRE(obj) \
-	MODULE_CONTEXT_REQUIRE(obj, imap_coi_user_module)
 #define IMAP_COI_STORAGE_CONTEXT(obj) \
 	MODULE_CONTEXT_REQUIRE(obj, imap_coi_storage_module)
 #define IMAP_COI_MAIL_CONTEXT(obj) \
@@ -23,16 +20,9 @@ struct imap_coi_mailbox_transaction {
 	ARRAY_TYPE(seq_range) move_uids;
 };
 
-struct imap_coi_user {
-	union mail_user_module_context module_ctx;
-	struct coi_context *coi_ctx;
-};
-
 const char *imap_coi_plugin_version = DOVECOT_ABI_VERSION;
 
 static struct module *imap_coi_module;
-static MODULE_CONTEXT_DEFINE_INIT(imap_coi_user_module,
-				  &mail_user_module_register);
 static MODULE_CONTEXT_DEFINE_INIT(imap_coi_storage_module,
 				  &mail_storage_module_register);
 static MODULE_CONTEXT_DEFINE_INIT(imap_coi_mail_module, &mail_module_register);
@@ -43,14 +33,14 @@ static unsigned int imap_feature_coi = UINT_MAX;
 
 static void imap_client_enable_coi(struct client *client)
 {
-	struct imap_coi_user *icuser = IMAP_COI_USER_CONTEXT(client->user);
+	struct coi_context *coi_ctx = coi_get_user_context(client->user);
 	const char *line;
 
-	if (icuser == NULL)
+	if (coi_ctx == NULL)
 		return;
 
 	line = t_strdup_printf("* COI MAILBOX-ROOT %s",
-			       coi_get_mailbox_root(icuser->coi_ctx));
+			       coi_get_mailbox_root(coi_ctx));
 	client_send_line(client, line);
 }
 
@@ -68,37 +58,6 @@ static void imap_coi_client_created(struct client **_client)
 
 	if (next_hook_client_created != NULL)
 		next_hook_client_created(_client);
-}
-
-static void imap_coi_user_deinit(struct mail_user *user)
-{
-	struct imap_coi_user *icuser = IMAP_COI_USER_CONTEXT_REQUIRE(user);
-
-	coi_context_deinit(&icuser->coi_ctx);
-	icuser->module_ctx.super.deinit(user);
-}
-
-static void imap_coi_mail_user_created(struct mail_user *user)
-{
-	struct mail_user_vfuncs *v = user->vlast;
-	struct imap_coi_user *icuser;
-
-	icuser = p_new(user->pool, struct imap_coi_user, 1);
-	icuser->module_ctx.super = *v;
-	user->vlast = &icuser->module_ctx.super;
-
-	v->deinit = imap_coi_user_deinit;
-	MODULE_CONTEXT_SET(user, imap_coi_user_module, icuser);
-}
-
-static void imap_coi_mail_namespaces_created(struct mail_namespace *namespaces)
-{
-	struct mail_user *user = namespaces->user;
-	struct imap_coi_user *icuser = IMAP_COI_USER_CONTEXT_REQUIRE(user);
-
-	/* don't set COI context for raw user */
-	if (!user->autocreated)
-		icuser->coi_ctx = coi_context_init(user);
 }
 
 static struct mailbox_transaction_context *
@@ -129,8 +88,7 @@ static int
 imap_coi_move_mails(struct mailbox *box,
 		    struct imap_coi_mailbox_transaction *ictrans)
 {
-	struct imap_coi_user *icuser =
-		IMAP_COI_USER_CONTEXT_REQUIRE(box->storage->user);
+	struct coi_context *coi_ctx = coi_get_user_context(box->storage->user);
 	struct mailbox_transaction_context *src_trans, *dest_trans;
 	struct mailbox *dest_box;
 	struct mail_storage *dest_storage;
@@ -144,7 +102,7 @@ imap_coi_move_mails(struct mailbox *box,
 	if (array_count(&ictrans->move_uids) == 0)
 		return 0;
 
-	if (coi_mailbox_open(icuser->coi_ctx, COI_MAILBOX_CHATS,
+	if (coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS,
 			     MAILBOX_FLAG_AUTO_CREATE | MAILBOX_FLAG_SAVEONLY,
 			     &dest_box, &dest_storage) <= 0)
 		return -1;
@@ -266,8 +224,6 @@ static void imap_coi_mail_allocated(struct mail *_mail)
 }
 
 static struct mail_storage_hooks imap_coi_mail_storage_hooks = {
-	.mail_user_created = imap_coi_mail_user_created,
-	.mail_namespaces_created = imap_coi_mail_namespaces_created,
 	.mailbox_allocated = imap_coi_mailbox_allocated,
 	.mail_allocated = imap_coi_mail_allocated,
 };
@@ -281,12 +237,14 @@ void imap_coi_plugin_init(struct module *module)
 	imap_feature_coi =
 		imap_feature_register("COI", 0, imap_client_enable_coi);
 	mail_storage_hooks_add(module, &imap_coi_mail_storage_hooks);
+	coi_storage_plugin_init(module);
 }
 
 void imap_coi_plugin_deinit(void)
 {
 	imap_client_created_hook_set(next_hook_client_created);
 	mail_storage_hooks_remove(&imap_coi_mail_storage_hooks);
+	coi_storage_plugin_deinit();
 }
 
 const char *imap_coi_plugin_dependencies[] = { NULL };
