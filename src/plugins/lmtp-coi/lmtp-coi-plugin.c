@@ -252,7 +252,7 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 		lcmail = p_new(pmail->pool, struct lmtp_coi_mail, 1);
 		MODULE_CONTEXT_SET(pmail, lmtp_coi_mail_module, lcmail);
 	}
-	/* Add $HasChat keyword to all chat mails. This way:
+	/* Add $Chat keyword to all chat mails. This way:
 	   1) With filter=none clients can easily differentiate mails in INBOX
 	   whether they are chats or not.
 	   2) With filter=seen the server can move mails to Chats mailbox
@@ -616,7 +616,7 @@ lmtp_coi_copy(struct mail_save_context *ctx, struct mail *mail)
 	struct lmtp_coi_mail *lcmail = LMTP_COI_MAIL_CONTEXT(pmail);
 
 	if (lcmail != NULL && lcmail->add_has_chat_flag) {
-		const char *const chat_kw_arr[] = { COI_KEYWORD_HASCHAT, NULL };
+		const char *const chat_kw_arr[] = { COI_KEYWORD_CHAT, NULL };
 		struct mail_keywords *chat_kw;
 
 		chat_kw = mailbox_keywords_create_valid(t->box, chat_kw_arr);

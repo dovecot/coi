@@ -6,7 +6,7 @@
 /*
  * Message keywords
  */
-#define COI_KEYWORD_HASCHAT "$HasChat"
+#define COI_KEYWORD_CHAT "$Chat"
 
 /*
  * Message headers

@@ -208,9 +208,9 @@ imap_coi_update_flags(struct mail *mail, enum modify_type modify_type,
 	    (flags & MAIL_SEEN) != 0 && modify_type != MODIFY_REMOVE &&
 	    (mail_get_flags(mail) & MAIL_SEEN) == 0) {
 		/* Adding \Seen flag to a mail in INBOX. Does it also have
-		   $HasChat keyword? */
+		   $Chat keyword? */
 		const char *const *old_keywords = mail_get_keywords(mail);
-		if (str_array_icase_find(old_keywords, COI_KEYWORD_HASCHAT)) {
+		if (str_array_icase_find(old_keywords, COI_KEYWORD_CHAT)) {
 			/* Yes, move it to Chats */
 			seq_range_array_add(&ictrans->move_uids, mail->uid);
 		}
