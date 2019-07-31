@@ -1,11 +1,19 @@
 /* Copyright (c) 2019 Dovecot authors, see the included COPYING file */
 
 #include "lib.h"
+#include "ioloop.h"
 #include "coi-common.h"
 #include "coi-config.h"
 #include "imap-metadata.h"
 #include "mail-storage-private.h"
 #include "mailbox-attribute-private.h"
+
+#define COI_CONTEXT_CONFIG_CACHE_SECS (60*60)
+
+struct coi_config_cache {
+	time_t last_updated;
+	struct coi_config config;
+};
 
 static const char *filter_names[COI_CONFIG_FILTER_SEEN+1] = {
 	"none",
@@ -78,6 +86,11 @@ int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r)
 	int ret;
 
 	i_zero(config_r);
+	if (coi_ctx->config_cache != NULL &&
+	    ioloop_time - coi_ctx->config_cache->last_updated < COI_CONTEXT_CONFIG_CACHE_SECS) {
+		*config_r = coi_ctx->config_cache->config;
+		return 0;
+	}
 
 	trans = imap_metadata_transaction_begin_server(coi_ctx->user);
 	ret = coi_metadata_get(trans, MAILBOX_ATTRIBUTE_COI_CONFIG_ENABLED, &value);
@@ -88,6 +101,12 @@ int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r)
 	}
 
 	(void)imap_metadata_transaction_commit(&trans, &error, &client_error);
+	if (ret == 0) {
+		if (coi_ctx->config_cache == NULL)
+			coi_ctx->config_cache = p_new(coi_ctx->pool, struct coi_config_cache, 1);
+		coi_ctx->config_cache->last_updated = ioloop_time;
+		coi_ctx->config_cache->config = *config_r;
+	}
 	return ret;
 }
 
