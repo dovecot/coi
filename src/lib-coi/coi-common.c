@@ -250,10 +250,18 @@ coi_mail_header_read_msgids(const char *value, ARRAY_TYPE(const_string) *msgids)
 	}
 }
 
-int coi_mail_is_chat_related(struct coi_context *coi_ctx, struct mail *mail)
+int coi_mail_is_chat(struct coi_context *coi_ctx, struct mail *mail)
 {
 	ARRAY_TYPE(const_string) msgids;
 	const char *header = NULL;
+	int ret;
+
+	/* Chat-Version: */
+	ret = mail_get_first_header(mail, COI_MSGHDR_CHAT, &header);
+	if (ret < 0 && !mail->expunged)
+		return -1;
+	if (ret > 0)
+		return 1;
 
 	t_array_init(&msgids, 64);
 

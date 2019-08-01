@@ -79,7 +79,7 @@ int coi_mailbox_open(struct coi_context *coi_ctx, const char *base_name,
  * Chat message recognition
  */
 
-int coi_mail_is_chat_related(struct coi_context *coi_ctx, struct mail *mail);
+int coi_mail_is_chat(struct coi_context *coi_ctx, struct mail *mail);
 
 /*
  * Raw mail

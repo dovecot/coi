@@ -591,13 +591,10 @@ submission_coi_client_store_chat(struct submission_coi_client *scclient,
 	struct mail_save_context *save_ctx;
 	struct mailbox *box;
 	struct mail_storage *storage;
-	const char *header;
 	int ret = 0;
 
 	if (scclient->trans_state.rcpts == NULL &&
-	    mail_get_first_header(coi_mail->mail, COI_MSGHDR_CHAT,
-				  &header) <= 0 &&
-	    coi_mail_is_chat_related(coi_ctx, coi_mail->mail) <= 0) {
+	    coi_mail_is_chat(coi_ctx, coi_mail->mail) <= 0) {
 		/* Not a chat message or it is somehow not possible to
 		   determine whether it is one. */
 		return;
