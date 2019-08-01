@@ -545,8 +545,10 @@ lmtp_coi_client_local_deliver(struct client *client,
 			ret = -1;
 	}
 
-	if (ret == 0 &&
-	    coi_mail_is_chat(lldctx->src_mail) > 0) {
+	if (ret == 0)
+		ret = coi_mail_is_chat(lldctx->src_mail);
+
+	if (ret == 1) {
 		/* This is a chat message */
 		ret = lmtp_coi_client_store_chat(lrcpt, trans, lldctx,
 						 coi_ctx, &client_error);
@@ -555,10 +557,7 @@ lmtp_coi_client_local_deliver(struct client *client,
 				rcpt, 451, "4.2.0",
 				"Failed to save chat message: %s",
 				client_error);
-			ret = -1;
 		}
-	} else {
-		ret = 0;
 	}
 	if (ret < 0)
 		return -1;
