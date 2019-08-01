@@ -177,13 +177,6 @@ int coi_mail_is_chat(struct mail *mail)
 	if (ret > 0)
 		return 1;
 
-	/* In-Reply-To: */
-	ret = mail_get_first_header(mail, "in-reply-to", &header);
-	if (ret < 0 && !mail->expunged)
-		return -1;
-	if (ret > 0 && coi_msgid_header_has_chat(header))
-		return 1;
-
 	/* References: */
 	ret = mail_get_first_header(mail, "references", &header);
 	if (ret < 0 && !mail->expunged)
