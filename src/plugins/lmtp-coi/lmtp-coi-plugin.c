@@ -266,13 +266,13 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 	switch (config.filter) {
 	case COI_CONFIG_FILTER_NONE:
 		/* store to INBOX */
-		return 1;
+		return 0;
 	case COI_CONFIG_FILTER_ACTIVE:
 		break;
 	case COI_CONFIG_FILTER_SEEN:
 		/* For now store to INBOX, but move to Chats when \Seen flag
 		   is set. */
-		return 1;
+		return 0;
 	}
 
 	if (coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS,
@@ -313,7 +313,7 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 	}
 
 	mailbox_free(&box);
-	return ret;
+	return ret < 0 ? -1 : 1;
 }
 
 static bool
@@ -537,7 +537,7 @@ lmtp_coi_client_local_deliver(struct client *client,
 	struct mail_user *user = lldctx->rcpt_user;
 	struct coi_context *coi_ctx = coi_get_user_context(user);
 	const char *client_error;
-	int ret = 1;
+	int ret = 0;
 
 	if (lcrcpt != NULL) {
 		/* Do final STOKEN verification */
@@ -545,7 +545,7 @@ lmtp_coi_client_local_deliver(struct client *client,
 			ret = -1;
 	}
 
-	if (ret == 1 &&
+	if (ret == 0 &&
 	    coi_mail_is_chat(lldctx->src_mail) > 0) {
 		/* This is a chat message */
 		ret = lmtp_coi_client_store_chat(lrcpt, trans, lldctx,
@@ -558,11 +558,16 @@ lmtp_coi_client_local_deliver(struct client *client,
 			ret = -1;
 		}
 	} else {
-		ret = 1;
+		ret = 0;
+	}
+	if (ret < 0)
+		return -1;
+	if (ret > 0) {
+		/* already handled */
+		return 0;
 	}
 
-	return ret <= 0 ? ret :
-		lcclient->super.local_deliver(client, lrcpt, cmd, trans, lldctx);
+	return lcclient->super.local_deliver(client, lrcpt, cmd, trans, lldctx);
 }
 
 static void lmtp_coi_client_create(struct client *client)
