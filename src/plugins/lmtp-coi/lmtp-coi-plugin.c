@@ -546,7 +546,7 @@ lmtp_coi_client_local_deliver(struct client *client,
 	}
 
 	if (ret == 1 &&
-	    coi_mail_is_chat(coi_ctx, lldctx->src_mail) > 0) {
+	    coi_mail_is_chat(lldctx->src_mail) > 0) {
 		/* This is a chat message */
 		ret = lmtp_coi_client_store_chat(lrcpt, trans, lldctx,
 						 coi_ctx, &client_error);

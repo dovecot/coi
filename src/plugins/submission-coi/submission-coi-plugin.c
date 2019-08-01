@@ -594,7 +594,7 @@ submission_coi_client_store_chat(struct submission_coi_client *scclient,
 	int ret = 0;
 
 	if (scclient->trans_state.rcpts == NULL &&
-	    coi_mail_is_chat(coi_ctx, coi_mail->mail) <= 0) {
+	    coi_mail_is_chat(coi_mail->mail) <= 0) {
 		/* Not a chat message or it is somehow not possible to
 		   determine whether it is one. */
 		return;
