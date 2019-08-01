@@ -186,6 +186,13 @@ int coi_mail_is_chat(struct mail *mail)
 		return -1;
 	if (ret > 0 && coi_msgid_header_has_chat(header))
 		return 1;
+
+	/* Message-Id: Just in case Chat-Version is dropped by MTAs */
+	ret = mail_get_first_header(mail, "message-id", &header);
+	if (ret < 0 && !mail->expunged)
+		return -1;
+	if (ret > 0 && coi_msgid_header_has_chat(header))
+		return 1;
 	return 0;
 }
 
