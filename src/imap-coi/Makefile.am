@@ -13,7 +13,8 @@ lib11_imap_coi_plugin_la_LIBADD = \
 	$(top_builddir)/src/lib-coi/libdovecot-coi.la
 
 lib11_imap_coi_plugin_la_SOURCES = \
-	imap-coi-plugin.c
+	imap-coi-plugin.c \
+	imap-coi-storage.c
 
 noinst_HEADERS = \
 	imap-coi-plugin.h
