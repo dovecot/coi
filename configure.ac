@@ -32,11 +32,10 @@ AC_CONFIG_FILES([
 Makefile
 src/Makefile
 src/lib-coi/Makefile
-src/plugins/Makefile
-src/plugins/doveadm-coi/Makefile
-src/plugins/imap-coi/Makefile
-src/plugins/lmtp-coi/Makefile
-src/plugins/submission-coi/Makefile
+src/doveadm-coi/Makefile
+src/imap-coi/Makefile
+src/lmtp-coi/Makefile
+src/submission-coi/Makefile
 stamp.h])
 
 AC_OUTPUT
