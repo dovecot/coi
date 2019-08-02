@@ -36,6 +36,7 @@ src/doveadm-coi/Makefile
 src/imap-coi/Makefile
 src/lmtp-coi/Makefile
 src/submission-coi/Makefile
+src/webpush/Makefile
 stamp.h])
 
 AC_OUTPUT
