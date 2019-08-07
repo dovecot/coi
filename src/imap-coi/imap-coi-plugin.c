@@ -30,21 +30,6 @@ static MODULE_CONTEXT_DEFINE_INIT(imap_coi_mail_module, &mail_module_register);
 
 static imap_client_created_func_t *next_hook_client_created;
 
-static unsigned int imap_feature_coi = UINT_MAX;
-
-static void imap_client_enable_coi(struct client *client)
-{
-	struct coi_context *coi_ctx = coi_get_user_context(client->user);
-	const char *line;
-
-	if (coi_ctx == NULL)
-		return;
-
-	line = t_strdup_printf("* COI MAILBOX-ROOT %s",
-			       coi_get_mailbox_root(coi_ctx));
-	client_send_line(client, line);
-}
-
 static void imap_coi_client_create(struct client *client)
 {
 	client_add_capability(client, "COI");
@@ -243,8 +228,6 @@ void imap_coi_plugin_init(struct module *module)
 	next_hook_client_created =
 		imap_client_created_hook_set(imap_coi_client_created);
 
-	imap_feature_coi =
-		imap_feature_register("COI", 0, imap_client_enable_coi);
 	mail_storage_hooks_add(module, &imap_coi_mail_storage_hooks);
 	coi_storage_plugin_init(module);
 }
