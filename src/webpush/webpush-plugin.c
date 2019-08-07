@@ -186,7 +186,7 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 	if (curve == NULL || *curve == '\0')
 		curve = "prime256v1";
 
-	for(int i = 0; i < 1; i++) {
+	for(int i = 0; i < 2; i++) {
 		if (strcmp(key, MAILBOX_ATTRIBUTE_WEBPUSH_METADATA_VAPID_PUBLIC_KEY) == 0) {
 			if ((ret = get_vapid_public_key(box, key_buffer)) == 1) {
 				break;
@@ -209,6 +209,9 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 			i_unreached();
 		}
 	}
+
+	/* we MUST have gotten something here */
+	i_assert(str_len(key_buffer) > 0);
 
 	value_r->value = str_c(key_buffer);
 
