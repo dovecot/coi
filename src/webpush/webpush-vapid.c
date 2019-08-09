@@ -166,13 +166,6 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 	buffer_t *key_buffer = t_buffer_create(256);
 	int ret;
 
-	if (!box->inbox_user) {
-		mail_storage_set_error(box->storage, MAIL_ERROR_PARAMS,
-				       "WebPush VAPID key is only available via"
-				       " INBOX");
-		return -1;
-	}
-
 	if (!dcrypt_initialize(NULL, NULL, &error)) {
 		i_error("dcrypt_initialize() failed: %s", error);
 		mail_storage_set_error(box->storage, MAIL_ERROR_UNAVAILABLE,
