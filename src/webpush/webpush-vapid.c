@@ -3,7 +3,6 @@
 #include "lib.h"
 #include "buffer.h"
 #include "str.h"
-#include "ioloop.h"
 #include "dcrypt.h"
 #include "mail-storage-private.h"
 #include "webpush-plugin.h"
@@ -20,7 +19,6 @@ store_vapid_key(struct mailbox_transaction_context *t, struct dcrypt_keypair *pa
 	buffer_t *buf_priv = t_buffer_create(256);
 	buffer_t *buf_pub = t_buffer_create(256);
 	i_zero(&value);
-	value.last_change = ioloop_time;
 	/* export private key */
 	if (!dcrypt_key_store_private(pair->priv, DCRYPT_FORMAT_DOVECOT, NULL,
 				      buf_priv, NULL, NULL, error_r)) {
