@@ -72,8 +72,11 @@ generate_private_key(struct mailbox *box, const char *curve)
 		i_error("Cannot save VAPID keypair: %s", error);
 		mailbox_transaction_rollback(&t);
 		ret = -1;
+	} else if (mailbox_transaction_commit(&t) < 0) {
+		i_error("Cannot commit VAPID keypair transaction: %s",
+			mailbox_get_last_internal_error(box, NULL));
+		ret = -1;
 	} else {
-		mailbox_transaction_commit(&t);
 		ret = 0;
 	}
 
