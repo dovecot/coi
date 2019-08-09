@@ -1,6 +1,7 @@
 /* Copyright (c) 2019 Dovecot authors, see the included COPYING file */
 
 #include "lib.h"
+#include "webpush-vapid.h"
 #include "webpush-plugin.h"
 
 const char *webpush_plugin_version = DOVECOT_ABI_VERSION;

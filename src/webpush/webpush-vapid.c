@@ -5,7 +5,7 @@
 #include "str.h"
 #include "dcrypt.h"
 #include "mail-storage-private.h"
-#include "webpush-plugin.h"
+#include "webpush-vapid.h"
 
 #define WEBPUSH_INTERNAL_ATTRIBUTE_VAPID_PRIVATE_KEY \
 	MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT_SERVER \

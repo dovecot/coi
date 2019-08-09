@@ -13,4 +13,5 @@ lib05_webpush_plugin_la_SOURCES = \
 
 pkginc_libdir=$(pkgincludedir)
 pkginc_lib_HEADERS = \
-	webpush-plugin.h
+	webpush-plugin.h \
+	webpush-vapid.h
