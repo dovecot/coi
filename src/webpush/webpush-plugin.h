@@ -1,6 +1,8 @@
 #ifndef WEBPUSH_PLUGIN_H
 #define WEBPUSH_PLUGIN_H 1
 
+struct module;
+
 /**
  This plugin is intended for generating vapid keys on-demand.
  The generated keys are stored in user attributes.
@@ -26,6 +28,8 @@
 #define MAILBOX_ATTRIBUTE_WEBPUSH_METADATA_VAPID_PRIVATE_KEY \
 	MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT_SERVER \
 	MAILBOX_ATTRIBUTE_WEBPUSH_PREFIX"vapid-private"
+
+void webpush_vapid_init(void);
 
 void webpush_plugin_init(struct module *module);
 void webpush_plugin_deinit(void);

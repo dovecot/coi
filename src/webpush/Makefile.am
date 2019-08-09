@@ -8,7 +8,8 @@ dovecot_module_LTLIBRARIES = \
 	lib05_webpush_plugin.la
 
 lib05_webpush_plugin_la_SOURCES = \
-	webpush-plugin.c
+	webpush-plugin.c \
+	webpush-vapid.c
 
 pkginc_libdir=$(pkgincludedir)
 pkginc_lib_HEADERS = \
