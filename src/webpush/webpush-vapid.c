@@ -12,10 +12,6 @@
 	MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT_SERVER \
 	MAILBOX_ATTRIBUTE_WEBPUSH_PREFIX"vapid_private_key"
 
-#define WEBPUSH_INTERNAL_ATTRIBUTE_VAPID_PUBLIC_KEY \
-	MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT_SERVER \
-	MAILBOX_ATTRIBUTE_WEBPUSH_PREFIX"vapid_public_key"
-
 static int
 store_vapid_key(struct mailbox_transaction_context *t, struct dcrypt_keypair *pair,
 		const char **error_r)
@@ -43,14 +39,6 @@ store_vapid_key(struct mailbox_transaction_context *t, struct dcrypt_keypair *pa
 	value.value = str_c(buf_priv);
 	if (mailbox_attribute_set(t, MAIL_ATTRIBUTE_TYPE_PRIVATE,
 				  WEBPUSH_INTERNAL_ATTRIBUTE_VAPID_PRIVATE_KEY,
-				  &value) < 0) {
-		*error_r = mail_storage_get_last_internal_error(t->box->storage, NULL);
-		return -1;
-	}
-
-	value.value = str_c(buf_pub);
-	if (mailbox_attribute_set(t, MAIL_ATTRIBUTE_TYPE_PRIVATE,
-				  WEBPUSH_INTERNAL_ATTRIBUTE_VAPID_PUBLIC_KEY,
 				  &value) < 0) {
 		*error_r = mail_storage_get_last_internal_error(t->box->storage, NULL);
 		return -1;
@@ -99,62 +87,74 @@ generate_private_key(struct mailbox *box, const char *curve)
 }
 
 static int
-get_vapid_public_key(struct mailbox *box, buffer_t *tmp_buffer)
+get_vapid_private_dcrypt_key(struct mailbox *box,
+			     struct dcrypt_private_key **priv_key_r)
 {
 	struct mail_attribute_value value;
 	int ret;
 	const char *error;
-	i_zero(&value);
 
-	/* try to load public key from attributes */
-	if ((ret = mailbox_attribute_get(box, MAIL_ATTRIBUTE_TYPE_PRIVATE,
-					WEBPUSH_INTERNAL_ATTRIBUTE_VAPID_PUBLIC_KEY,
-					&value)) > 0) {
-		/* load key */
-		struct dcrypt_public_key *tmp_key = NULL;
-		if (dcrypt_key_load_public(&tmp_key, value.value, &error) &&
-		    dcrypt_key_store_public(tmp_key, DCRYPT_FORMAT_PEM, tmp_buffer,
-					    &error)) {
-			dcrypt_key_unref_public(&tmp_key);
-			return 1;
-		} else {
-			i_warning("Generating new VAPID key, cannot load user's"
-				  " current VAPID key: %s", error);
-		}
-		dcrypt_key_unref_public(&tmp_key);
-	} else if (ret == -1)
-		return -1;
-	return 0;
+	/* try to load private key from attributes */
+	ret = mailbox_attribute_get(box, MAIL_ATTRIBUTE_TYPE_PRIVATE,
+				    WEBPUSH_INTERNAL_ATTRIBUTE_VAPID_PRIVATE_KEY,
+				    &value);
+	if (ret <= 0)
+		return ret;
+
+	/* load key */
+	if (!dcrypt_key_load_private(priv_key_r, value.value, NULL, NULL,
+				     &error)) {
+		i_error("webpush: User has invalid VAPID key - regenerating: "
+			"Can't load private key: %s", error);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+get_vapid_public_key(struct mailbox *box, buffer_t *tmp_buffer)
+{
+	struct dcrypt_private_key *priv_key;
+	struct dcrypt_public_key *pub_key;
+	const char *error;
+	int ret;
+
+	ret = get_vapid_private_dcrypt_key(box, &priv_key);
+	if (ret <= 0)
+		return ret;
+
+	dcrypt_key_convert_private_to_public(priv_key, &pub_key);
+	dcrypt_key_unref_private(&priv_key);
+
+	if (!dcrypt_key_store_public(pub_key, DCRYPT_FORMAT_PEM,
+				     tmp_buffer, &error)) {
+		i_error("webpush: User has invalid VAPID key - regenerating: "
+			"Can't store public key: %s", error);
+		ret = 0;
+	}
+	dcrypt_key_unref_public(&pub_key);
+	return ret;
 }
 
 static int
 get_vapid_private_key(struct mailbox *box, buffer_t *tmp_buffer)
 {
-	struct mail_attribute_value value;
-	int ret;
+	struct dcrypt_private_key *priv_key;
 	const char *error;
-	i_zero(&value);
+	int ret;
 
-	/* try to load private key from attributes */
-	if ((ret = mailbox_attribute_get(box, MAIL_ATTRIBUTE_TYPE_PRIVATE,
-					WEBPUSH_INTERNAL_ATTRIBUTE_VAPID_PRIVATE_KEY,
-					&value)) > 0) {
-		/* load key */
-		struct dcrypt_private_key *tmp_key = NULL;
-		if (dcrypt_key_load_private(&tmp_key, value.value, NULL, NULL,
-					    &error) &&
-		    dcrypt_key_store_private(tmp_key, DCRYPT_FORMAT_PEM, NULL,
-					     tmp_buffer, NULL, NULL, &error)) {
-			dcrypt_key_unref_private(&tmp_key);
-			return 1;
-		} else {
-			i_warning("Generating new VAPID key, cannot load user's"
-				  " current VAPID key: %s", error);
-		}
-		dcrypt_key_unref_private(&tmp_key);
-	} else if (ret == -1)
-		return -1;
-	return 0;
+	ret = get_vapid_private_dcrypt_key(box, &priv_key);
+	if (ret <= 0)
+		return ret;
+
+	if (!dcrypt_key_store_private(priv_key, DCRYPT_FORMAT_PEM, NULL,
+				      tmp_buffer, NULL, NULL, &error)) {
+		i_error("webpush: User has invalid VAPID key - regenerating: "
+			"Can't store private key: %s", error);
+		ret = 0;
+	}
+	dcrypt_key_unref_private(&priv_key);
+	return ret;
 }
 
 static int
