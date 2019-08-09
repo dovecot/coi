@@ -8,9 +8,7 @@
 #include "webpush-vapid.h"
 
 #define WEBPUSH_INTERNAL_ATTRIBUTE_VAPID_PRIVATE_KEY \
-	MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT_SERVER \
-	MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT \
-	MAILBOX_ATTRIBUTE_WEBPUSH_PREFIX"vapid_private_key"
+	MAILBOX_ATTRIBUTE_WEBPUSH_PRIVATE_PREFIX"vapid_private_key"
 
 static int
 store_vapid_key(struct mailbox_transaction_context *t, struct dcrypt_keypair *pair,
