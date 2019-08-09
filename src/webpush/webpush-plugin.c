@@ -13,5 +13,3 @@ void webpush_plugin_init(struct module *module ATTR_UNUSED)
 void webpush_plugin_deinit(void)
 {
 }
-
-const char *webpush_plugin_dependencies[] = { NULL };
