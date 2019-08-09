@@ -238,9 +238,6 @@ iattr_webpush_metadata_vapid_public_key = {
 	.get = webpush_attribute_metadata_get_vapid_key,
 };
 
-void webpush_plugin_init(struct module *module);
-void webpush_plugin_deinit(void);
-
 void webpush_plugin_init(struct module *module ATTR_UNUSED)
 {
 	mailbox_attribute_register_internal(&iattr_webpush_metadata_vapid_public_key);

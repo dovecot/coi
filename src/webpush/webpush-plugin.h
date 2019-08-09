@@ -27,4 +27,7 @@
 	MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT_SERVER \
 	MAILBOX_ATTRIBUTE_WEBPUSH_PREFIX"vapid-private"
 
+void webpush_plugin_init(struct module *module);
+void webpush_plugin_deinit(void);
+
 #endif
