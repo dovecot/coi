@@ -16,6 +16,8 @@ struct module;
 	MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT_SERVER \
 	MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT"webpush/"
 
+void webpush_device_init(void);
+
 void webpush_plugin_init(struct module *module);
 void webpush_plugin_deinit(void);
 
