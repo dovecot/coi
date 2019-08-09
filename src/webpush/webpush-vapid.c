@@ -177,7 +177,7 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 		curve = "prime256v1";
 
 	for(int i = 0; i < 2; i++) {
-		if (strcmp(key, MAILBOX_ATTRIBUTE_WEBPUSH_METADATA_VAPID_PUBLIC_KEY) == 0) {
+		if (strcmp(key, MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PUBLIC_KEY) == 0) {
 			if ((ret = get_vapid_public_key(box, key_buffer)) == 1) {
 				break;
 			} else if (ret == 0) {
@@ -186,7 +186,7 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 			} else {
 				return -1;
 			}
-		} else if (strcmp(key, MAILBOX_ATTRIBUTE_WEBPUSH_METADATA_VAPID_PRIVATE_KEY) == 0) {
+		} else if (strcmp(key, MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PRIVATE_KEY) == 0) {
 			if ((ret = get_vapid_private_key(box, key_buffer)) == 1) {
 				break;
 			} else if (ret == 0) {
@@ -211,7 +211,7 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 static const struct mailbox_attribute_internal
 iattr_webpush_metadata_vapid_private_key = {
 	.type = MAIL_ATTRIBUTE_TYPE_PRIVATE,
-	.key = MAILBOX_ATTRIBUTE_WEBPUSH_METADATA_VAPID_PUBLIC_KEY,
+	.key = MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PUBLIC_KEY,
 	.rank = MAIL_ATTRIBUTE_INTERNAL_RANK_AUTHORITY,
 	.flags = MAIL_ATTRIBUTE_INTERNAL_FLAG_VALIDATED,
 
@@ -221,7 +221,7 @@ iattr_webpush_metadata_vapid_private_key = {
 static const struct mailbox_attribute_internal
 iattr_webpush_metadata_vapid_public_key = {
 	.type = MAIL_ATTRIBUTE_TYPE_PRIVATE,
-	.key = MAILBOX_ATTRIBUTE_WEBPUSH_METADATA_VAPID_PRIVATE_KEY,
+	.key = MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PRIVATE_KEY,
 	.rank = MAIL_ATTRIBUTE_INTERNAL_RANK_AUTHORITY,
 	.flags = MAIL_ATTRIBUTE_INTERNAL_FLAG_VALIDATED,
 
