@@ -210,7 +210,7 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 }
 
 static const struct mailbox_attribute_internal
-iattr_webpush_metadata_vapid_private_key = {
+iattr_webpush_metadata_vapid_public_key = {
 	.type = MAIL_ATTRIBUTE_TYPE_PRIVATE,
 	.key = MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PUBLIC_KEY,
 	.rank = MAIL_ATTRIBUTE_INTERNAL_RANK_AUTHORITY,
@@ -220,7 +220,7 @@ iattr_webpush_metadata_vapid_private_key = {
 };
 
 static const struct mailbox_attribute_internal
-iattr_webpush_metadata_vapid_public_key = {
+iattr_webpush_metadata_vapid_private_key = {
 	.type = MAIL_ATTRIBUTE_TYPE_PRIVATE,
 	.key = MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PRIVATE_KEY,
 	.rank = MAIL_ATTRIBUTE_INTERNAL_RANK_AUTHORITY,
