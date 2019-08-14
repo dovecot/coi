@@ -18,6 +18,9 @@ struct module;
 
 void webpush_device_init(void);
 
+void webpush_notify_register(void);
+void webpush_notify_unregister(void);
+
 void webpush_plugin_init(struct module *module);
 void webpush_plugin_deinit(void);
 
