@@ -256,6 +256,58 @@ webpush_subscription_attribute_get(struct mailbox *box, const char *key,
 	return 1;
 }
 
+int webpush_subscriptions_read(struct mailbox *box, pool_t pool,
+			       bool validated_only,
+			       ARRAY_TYPE(webpush_subscription) *subscriptions)
+{
+	struct mailbox_attribute_iter *iter;
+	struct webpush_subscription subscription;
+	const char *key;
+	int ret = 0;
+
+	iter = mailbox_attribute_iter_init(box, 0, MAILBOX_ATTRIBUTE_WEBPUSH_PUBLIC_SUBSCRIPTION_PREFIX);
+	while ((key = mailbox_attribute_iter_next(iter)) != NULL) {
+		/* reading the subscription deletes any expired ones */
+		ret = webpush_subscription_read(box, key, pool, &subscription);
+		if (ret < 0)
+			break;
+		if (ret > 0) {
+			if (!validated_only || subscription.validation == NULL)
+				array_push_back(subscriptions, &subscription);
+		}
+	}
+	if (mailbox_attribute_iter_deinit(&iter) < 0)
+		ret = -1;
+	return ret < 0 ? -1 : 0;
+}
+
+static int webpush_subscription_count_nonexpired(struct mailbox *box)
+{
+	ARRAY_TYPE(webpush_subscription) subscriptions;
+	pool_t pool;
+	int ret;
+
+	pool = pool_alloconly_create(MEMPOOL_GROWING"webpush subscriptions", 1024);
+	p_array_init(&subscriptions, pool, WEBPUSH_DEFAULT_SUBSCRIPTION_LIMIT);
+	ret = webpush_subscriptions_read(box, pool, FALSE, &subscriptions);
+	if (ret == 0)
+		ret = array_count(&subscriptions);
+	pool_unref(&pool);
+	return ret;
+}
+
+unsigned int webpush_subscription_get_limit(struct mail_user *user)
+{
+	unsigned int limit = WEBPUSH_DEFAULT_SUBSCRIPTION_LIMIT;
+	const char *limit_str =
+		mail_user_plugin_getenv(user, "webpush_subscription_limit");
+	if (limit_str != NULL && str_to_uint(limit_str, &limit) < 0) {
+		i_error("webpush: Invalid webpush_subscription_limit=%s - ignoring",
+			limit_str);
+	}
+	return limit;
+}
+
 static int
 webpush_subscription_store(struct mailbox_transaction_context *t,
 			   const char *device_key,
@@ -322,6 +374,7 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 {
 	struct webpush_subscription subscription;
 	const char *p, *device_key, *storage_key, *error;
+	int ret;
 
 	i_assert(str_begins(key, MAILBOX_ATTRIBUTE_WEBPUSH_PUBLIC_SUBSCRIPTION_PREFIX));
 	device_key = key + strlen(MAILBOX_ATTRIBUTE_WEBPUSH_PUBLIC_SUBSCRIPTION_PREFIX);
@@ -353,6 +406,16 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 			return -1;
 		}
 		return 0;
+	}
+
+	ret = webpush_subscription_count_nonexpired(t->box);
+	if (ret < 0)
+		return -1;
+
+	if ((unsigned int)ret >= webpush_subscription_get_limit(t->box->storage->user)) {
+		mail_storage_set_error(t->box->storage, MAIL_ERROR_LIMIT,
+			"Too many subscriptions, delete old ones first");
+		return -1;
 	}
 
 	/* parse the JSON value into a struct */

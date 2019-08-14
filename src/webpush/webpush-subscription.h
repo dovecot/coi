@@ -2,6 +2,7 @@
 #define WEBPUSH_SUBSCRIPTION_H
 
 struct mailbox;
+struct mail_user;
 
 #include "webpush-plugin.h"
 
@@ -10,6 +11,8 @@ struct mailbox;
 
 #define MAILBOX_ATTRIBUTE_WEBPUSH_PRIVATE_SUBSCRIPTION_PREFIX \
 	MAILBOX_ATTRIBUTE_WEBPUSH_PRIVATE_PREFIX"subscription/"
+
+#define WEBPUSH_DEFAULT_SUBSCRIPTION_LIMIT 10
 
 enum webpush_subscription_msgtype {
 	WEBPUSH_SUBSCRIPTION_MSGTYPE_UNKNOWN = 0,
@@ -45,6 +48,17 @@ ARRAY_DEFINE_TYPE(webpush_subscription, struct webpush_subscription);
 int webpush_subscription_read(struct mailbox *box, const char *device_key,
 			      pool_t pool,
 			      struct webpush_subscription *subscription_r);
+
+/* Read all subscriptions into the given array. Returns 0 on success,
+   -1 on internal error. If validated_only=TRUE, it returns only subscriptions
+   whose endpoints have successfully been validated already. Expired
+   non-validated subscriptions are automatically deleted. */
+int webpush_subscriptions_read(struct mailbox *box, pool_t pool,
+			       bool validated_only,
+			       ARRAY_TYPE(webpush_subscription) *subscriptions);
+
+/* Returns the maximum number of allowed subscriptions. */
+unsigned int webpush_subscription_get_limit(struct mail_user *user);
 
 int webpush_subscription_parse(struct istream *input, pool_t pool,
 			       struct webpush_subscription *subscription_r,
