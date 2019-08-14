@@ -2,12 +2,12 @@ AM_CPPFLAGS = \
 	$(LIBDOVECOT_INCLUDE) \
 	$(LIBDOVECOT_STORAGE_INCLUDE)
 
-lib05_webpush_plugin_la_LDFLAGS = -module -avoid-version
+lib30_webpush_plugin_la_LDFLAGS = -module -avoid-version
 
 dovecot_module_LTLIBRARIES = \
-	lib05_webpush_plugin.la
+	lib30_webpush_plugin.la
 
-lib05_webpush_plugin_la_SOURCES = \
+lib30_webpush_plugin_la_SOURCES = \
 	webpush-plugin.c \
 	webpush-subscription.c \
 	webpush-subscription-parser.c \
