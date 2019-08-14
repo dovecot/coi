@@ -5,6 +5,7 @@
 #include "istream.h"
 #include "iso8601-date.h"
 #include "json-parser.h"
+#include "http-url.h"
 #include "webpush-subscription.h"
 
 #define WEBPUSH_VALUE_MAX_LENGTH 1024
@@ -47,6 +48,23 @@ webpush_subscription_get_string(const char *value_in, pool_t pool,
 		return FALSE;
 	}
 	*value_out_r = p_strdup(pool, value_in);
+	return TRUE;
+}
+
+static bool
+webpush_subscription_endpoint_parse(struct webpush_subscription *subscription,
+				    pool_t pool, const char **error_r)
+{
+	const char *error;
+
+	if (http_url_parse(subscription->resource_endpoint, NULL,
+			   HTTP_URL_ALLOW_USERINFO_PART, pool,
+			   &subscription->resource_endpoint_http_url,
+			   &error) < 0) {
+		*error_r = t_strdup_printf("Invalid resource endpoint URL %s: %s",
+					   subscription->resource_endpoint, error);
+		return FALSE;
+	}
 	return TRUE;
 }
 
@@ -125,6 +143,9 @@ webpush_subscription_parse_resource(struct json_parser *parser, pool_t pool,
 			}
 			if (!webpush_subscription_get_string(value, pool,
 					&subscription_r->resource_endpoint, error_r))
+				return FALSE;
+			if (!webpush_subscription_endpoint_parse(subscription_r,
+								 pool, error_r))
 				return FALSE;
 		} else if (strcmp(key, "keys") == 0) {
 			if (!webpush_subscription_parse_keys(parser, pool, subscription_r, error_r))

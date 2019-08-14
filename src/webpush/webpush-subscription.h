@@ -36,6 +36,9 @@ struct webpush_subscription {
 
 	const char *resource_endpoint;
 	ARRAY_TYPE(webpush_resource_key) resource_keys;
+
+	/* generated: */
+	struct http_url *resource_endpoint_http_url;
 };
 ARRAY_DEFINE_TYPE(webpush_subscription, struct webpush_subscription);
 

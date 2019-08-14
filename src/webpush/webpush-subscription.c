@@ -8,6 +8,7 @@
 #include "istream.h"
 #include "iso8601-date.h"
 #include "json-parser.h"
+#include "http-url.h"
 #include "settings-parser.h"
 #include "mail-storage-private.h"
 #include "webpush-subscription.h"
