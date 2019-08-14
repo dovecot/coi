@@ -173,7 +173,7 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 		return -1;
 	}
 
-	const char *curve = mail_user_plugin_getenv(box->storage->user, "vapid_curve");
+	const char *curve = mail_user_plugin_getenv(box->storage->user, "webpush_vapid_curve");
 	if (curve == NULL || *curve == '\0')
 		curve = "prime256v1";
 
