@@ -16,6 +16,8 @@
 
 /* All COI chat messages have Message-ID with this prefix */
 #define COI_CHAT_MSGID_PREFIX "chat$"
+/* All COI chat group messages have Message-ID with this prefix */
+#define COI_CHAT_GROUP_MSGID_PREFIX COI_CHAT_MSGID_PREFIX"group."
 
 /*
  * COI context
@@ -189,6 +191,39 @@ int coi_mail_is_chat(struct mail *mail)
 	if (ret < 0 && !mail->expunged)
 		return -1;
 	if (ret > 0 && coi_msgid_header_has_chat(header))
+		return 1;
+	return 0;
+}
+
+static bool
+coi_msgid_header_get_group(const char *value, const char **group_id_r)
+{
+	const char *id;
+
+	if ((id = message_id_get_next(&value)) == NULL)
+		return FALSE;
+	if (!str_begins(id, COI_CHAT_GROUP_MSGID_PREFIX))
+		return FALSE;
+	*group_id_r = t_strcut(id + strlen(COI_CHAT_GROUP_MSGID_PREFIX), '.');
+	return TRUE;
+}
+
+int coi_mail_parse_group(struct mail *mail, const char **group_id_r)
+{
+	const char *header;
+	int ret;
+
+	ret = mail_get_first_header(mail, "message-id", &header);
+	if (ret < 0 && !mail->expunged)
+		return -1;
+	if (ret > 0 && coi_msgid_header_get_group(header, group_id_r))
+		return 1;
+
+	/* try also References in case this is a reply from legacy client */
+	ret = mail_get_first_header(mail, "references", &header);
+	if (ret < 0 && !mail->expunged)
+		return -1;
+	if (ret > 0 && coi_msgid_header_get_group(header, group_id_r))
 		return 1;
 	return 0;
 }

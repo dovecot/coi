@@ -78,6 +78,10 @@ int coi_mailbox_open(struct coi_context *coi_ctx, const char *base_name,
 
 int coi_mail_is_chat(struct mail *mail);
 
+/* Returns 1 and sets group_id_r if mail is a group chat message, 0 if not,
+   -1 on I/O error. */
+int coi_mail_parse_group(struct mail *mail, const char **group_id_r);
+
 /*
  * Raw mail
  */
