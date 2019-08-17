@@ -28,6 +28,7 @@ ARRAY_DEFINE_TYPE(webpush_resource_key, struct webpush_resource_key);
 
 struct webpush_subscription {
 	time_t create_time;
+	const char *device_key; /* from the metadata key */
 	const char *validation;
 
 	const char *client_name;

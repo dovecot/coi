@@ -234,6 +234,7 @@ int webpush_subscription_read(struct mailbox *box, const char *device_key,
 		webpush_subscription_delete(box, storage_key);
 		return 0;
 	}
+	subscription_r->device_key = p_strdup(pool, device_key);
 	return 1;
 }
 
