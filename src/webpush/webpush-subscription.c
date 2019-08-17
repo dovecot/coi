@@ -422,6 +422,16 @@ webpush_subscription_validation_set(struct mailbox_transaction_context *t,
 	return webpush_subscription_store(t, device_key, &old_subscription);
 }
 
+static bool webpush_device_key_check_chars(const char *device_key)
+{
+	for (unsigned int i = 0; device_key[i] != '\0'; i++) {
+		unsigned char c = device_key[i];
+		if (c <= 32 || c >= 128)
+			return FALSE;
+	}
+	return TRUE;
+}
+
 static int
 webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 				   const char *key,
@@ -449,6 +459,11 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 	if (strlen(device_key) > WEBPUSH_DEVICE_KEY_MAX_LENGTH) {
 		mail_storage_set_error(t->box->storage, MAIL_ERROR_PARAMS,
 				       "Device key is too long");
+		return -1;
+	}
+	if (!webpush_device_key_check_chars(device_key)) {
+		mail_storage_set_error(t->box->storage, MAIL_ERROR_PARAMS,
+				       "Device key has invalid characters");
 		return -1;
 	}
 
