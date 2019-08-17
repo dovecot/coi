@@ -185,8 +185,7 @@ webpush_subscription_parse_value(const struct mail_attribute_value *value,
 	return ret;
 }
 
-static void
-webpush_subscription_delete(struct mailbox *box, const char *storage_key)
+int webpush_subscription_delete(struct mailbox *box, const char *storage_key)
 {
 	struct mailbox_transaction_context *t;
 
@@ -194,7 +193,7 @@ webpush_subscription_delete(struct mailbox *box, const char *storage_key)
 		i_error("webpush: Failed to unset delete subscription %s: "
 			"Mailbox couldn't be opened: %s",
 			storage_key, mailbox_get_last_internal_error(box, NULL));
-		return;
+		return -1;
 	}
 
 	t = mailbox_transaction_begin(box, 0, "webpush subscription delete");
@@ -202,7 +201,9 @@ webpush_subscription_delete(struct mailbox *box, const char *storage_key)
 	if (mailbox_transaction_commit(&t) < 0) {
 		i_error("webpush: Failed to unset delete subscription %s: %s",
 			storage_key, mailbox_get_last_internal_error(box, NULL));
+		return -1;
 	}
+	return 0;
 }
 
 int webpush_subscription_read(struct mailbox *box, const char *device_key,
@@ -226,12 +227,12 @@ int webpush_subscription_read(struct mailbox *box, const char *device_key,
 	    !webpush_subscription_validate(subscription_r, &error)) {
 		i_error("webpush: Invalid subscription %s - deleting: %s",
 			device_key, error);
-		webpush_subscription_delete(box, storage_key);
+		(void)webpush_subscription_delete(box, storage_key);
 		return 0;
 	}
 	if (webpush_subscription_is_expired(box, subscription_r)) {
 		/* already expired - delete silently */
-		webpush_subscription_delete(box, storage_key);
+		(void)webpush_subscription_delete(box, storage_key);
 		return 0;
 	}
 	subscription_r->device_key = p_strdup(pool, device_key);

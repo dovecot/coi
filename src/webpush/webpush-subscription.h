@@ -61,6 +61,10 @@ int webpush_subscriptions_read(struct mailbox *box, pool_t pool,
 			       bool validated_only,
 			       ARRAY_TYPE(webpush_subscription) *subscriptions);
 
+/* Delete webpush subscription with the given storage key. Returns 0 on success,
+   -1 on internal error. */
+int webpush_subscription_delete(struct mailbox *box, const char *storage_key);
+
 /* Returns the maximum number of allowed subscriptions. */
 unsigned int webpush_subscription_get_limit(struct mail_user *user);
 
