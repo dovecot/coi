@@ -56,6 +56,8 @@ coi_metadata_get(struct imap_metadata_transaction *trans, const char *attr_key,
 	case 1:
 		*value_r = value.value;
 		break;
+	default:
+		i_unreached();
 	}
 	return ret;
 }
