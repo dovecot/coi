@@ -299,6 +299,58 @@ static int webpush_subscription_count_nonexpired(struct mailbox *box)
 	return ret;
 }
 
+static unsigned int
+webpush_subscription_find_oldest(const ARRAY_TYPE(webpush_subscription) *subscriptions)
+{
+	unsigned int count;
+	const struct webpush_subscription *subs;
+	time_t oldest;
+	unsigned int i, oldest_idx = 0;
+
+	subs = array_get(subscriptions, &count);
+	i_assert(count > 0);
+
+	oldest = subs[0].create_time;
+	for (i = 1; i < count; i++) {
+		if (subs[i].create_time < oldest) {
+			oldest = subs[i].create_time;
+			oldest_idx = i;
+		}
+	}
+	return oldest_idx;
+}
+
+static int
+webpush_subscription_delete_oldest_one(struct mailbox *box,
+	ARRAY_TYPE(webpush_subscription) *subscriptions)
+{
+	unsigned int idx = webpush_subscription_find_oldest(subscriptions);
+	const struct webpush_subscription *subs = array_idx(subscriptions, idx);
+	const char *storage_key;
+
+	storage_key = t_strconcat(MAILBOX_ATTRIBUTE_WEBPUSH_PRIVATE_SUBSCRIPTION_PREFIX,
+				  subs->device_key, NULL);
+	return webpush_subscription_delete(box, storage_key);
+}
+
+int webpush_subscription_delete_oldest(struct mailbox *box,
+				       unsigned int max_remaining)
+{
+	ARRAY_TYPE(webpush_subscription) subscriptions;
+	pool_t pool;
+	int ret;
+
+	pool = pool_alloconly_create(MEMPOOL_GROWING"webpush subscriptions", 1024);
+	p_array_init(&subscriptions, pool, WEBPUSH_DEFAULT_SUBSCRIPTION_LIMIT);
+	ret = webpush_subscriptions_read(box, pool, FALSE, &subscriptions);
+	if (ret == 0) {
+		while (array_count(&subscriptions) > max_remaining)
+			webpush_subscription_delete_oldest_one(box, &subscriptions);
+	}
+	pool_unref(&pool);
+	return ret;
+}
+
 unsigned int webpush_subscription_get_limit(struct mail_user *user)
 {
 	unsigned int limit = WEBPUSH_DEFAULT_SUBSCRIPTION_LIMIT;
