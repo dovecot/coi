@@ -15,7 +15,8 @@ lib30_webpush_plugin_la_SOURCES = \
 	webpush-send.c \
 	webpush-subscription.c \
 	webpush-subscription-parser.c \
-	webpush-vapid.c
+	webpush-vapid.c \
+	webpush-payload.c
 
 lib30_webpush_plugin_la_LIBADD = \
 	$(top_builddir)/src/lib-coi/libdovecot-coi.la
@@ -27,11 +28,24 @@ pkginc_lib_HEADERS = \
 	webpush-plugin.h \
 	webpush-send.h \
 	webpush-subscription.h \
-	webpush-vapid.h
+	webpush-vapid.h \
+	webpush-payload.h
+
+noinst_HEADERS = \
+	webpush-payload-private.h
 
 test_programs = \
 	test-webpush-message \
-	test-webpush-subscription-parser
+	test-webpush-subscription-parser \
+	test-webpush-payload
+
+test_libs = \
+	$(LIBDOVECOT) \
+	$(LIBDOVECOT_STORAGE)
+
+test_deps = \
+	$(LIBDOVECOT_DEPS) \
+	$(LIBDOVECOT_STORAGE_DEPS)
 
 noinst_PROGRAMS = $(test_programs)
 
@@ -42,6 +56,14 @@ test_webpush_subscription_parser_DEPENDENCIES = webpush-subscription-parser.lo $
 test_webpush_message_SOURCES = test-webpush-message.c
 test_webpush_message_LDADD = webpush-message.lo $(LIBDOVECOT)
 test_webpush_message_DEPENDENCIES = webpush-message.lo $(LIBDOVECOT_DEPS)
+
+test_webpush_payload_SOURCES = test-webpush-payload.c
+test_webpush_payload_LDADD = $(test_libs) \
+			     webpush-subscription-parser.lo \
+			     webpush-payload.lo
+test_webpush_payload_DEPENDENCIES = webpush-subscription-parser.lo \
+				    webpush-payload.lo \
+				    $(test_deps)
 
 check: check-am check-test
 check-test: all-am
