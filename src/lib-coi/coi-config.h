@@ -25,6 +25,7 @@ enum coi_config_filter {
 };
 
 struct coi_config {
+	bool enabled;
 	enum coi_config_filter filter;
 };
 

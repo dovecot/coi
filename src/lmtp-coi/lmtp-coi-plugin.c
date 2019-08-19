@@ -248,10 +248,18 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 	struct coi_config config;
 	int ret = 0;
 
+	if (coi_config_read(coi_ctx, &config) < 0) {
+		*client_error_r = "Failed to read COI configuration";
+		return -1;
+	}
+	if (!config.enabled)
+		return 0;
+
 	if (lcmail == NULL) {
 		lcmail = p_new(pmail->pool, struct lmtp_coi_mail, 1);
 		MODULE_CONTEXT_SET(pmail, lmtp_coi_mail_module, lcmail);
 	}
+
 	/* Add $Chat keyword to all chat mails. This way:
 	   1) With filter=none clients can easily differentiate mails in INBOX
 	   whether they are chats or not.
@@ -259,10 +267,6 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 	   3) Push-notifications can see whether the mail is a chat or not. */
 	lcmail->add_has_chat_flag = TRUE;
 
-	if (coi_config_read(coi_ctx, &config) < 0) {
-		*client_error_r = "Failed to read COI configuration";
-		return -1;
-	}
 	switch (config.filter) {
 	case COI_CONFIG_FILTER_NONE:
 		/* store to INBOX */

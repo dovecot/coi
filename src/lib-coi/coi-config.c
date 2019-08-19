@@ -99,6 +99,7 @@ int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r)
 	if (ret > 0 && strcmp(value, "yes") == 0) {
 		/* COI is enabled. Read the config further. Ignore any invalid
 		   configuration settings. */
+		config_r->enabled = TRUE;
 		ret = coi_config_read_settings(trans, config_r);
 	}
 
