@@ -175,7 +175,7 @@ imap_coi_move_mails(struct mailbox *box,
 	   have checked it earlier also, but it's simpler here..) */
 	if (coi_config_read(coi_ctx, &config) < 0)
 		return -1;
-	if (config.filter != COI_CONFIG_FILTER_SEEN)
+	if (config.filter != COI_CONFIG_FILTER_SEEN || !config.enabled)
 		return 0;
 
 	if (coi_mailbox_open(coi_ctx, COI_MAILBOX_CHATS,
