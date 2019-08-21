@@ -146,7 +146,7 @@ webpush_subscription_to_string(const struct webpush_subscription *subscription,
 	webpush_json_append_comma_if_needed(str);
 	str_append(str, "\"resource\":{");
 	webpush_append_keyvalue(str, "endpoint", subscription->resource_endpoint);
-	if (array_is_created(&subscription->resource_keys) > 0) {
+	if (array_is_created(&subscription->resource_keys)) {
 		const struct webpush_resource_key *key;
 
 		webpush_json_append_comma_if_needed(str);
