@@ -27,9 +27,6 @@ static void coi_context_parse_settings(struct coi_context *coi_ctx)
 	const char *root_box_name;
 	struct mail_namespace *ns;
 
-	coi_ctx->coi_trust_msgid_prefix =
-		mail_user_plugin_getenv_bool(user, COI_SETTING_TRUST_MSGID_PREFIX);
-
 	/* COI root folder */
 	root_box_name = mail_user_plugin_getenv(user, COI_SETTING_MAILBOX_ROOT);
 	if (root_box_name == NULL) {

@@ -29,7 +29,6 @@
  */
 
 #define COI_SETTING_MAILBOX_ROOT "coi_mailbox_root"
-#define COI_SETTING_TRUST_MSGID_PREFIX "coi_trust_msgid_prefix"
 #define COI_SETTING_TOKEN_TEMP_SECRETS "coi_token_temp_secrets"
 #define COI_SETTING_TOKEN_PERM_SECRETS "coi_token_perm_secrets"
 
@@ -50,7 +49,6 @@ struct coi_context {
 	const char *root_box_name;
 	struct mail_namespace *root_ns;
 
-	bool coi_trust_msgid_prefix;
 	struct coi_config_cache *config_cache;
 
 	uint32_t list_index_ext_id;
