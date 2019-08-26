@@ -112,6 +112,40 @@ int coi_config_read(struct coi_context *coi_ctx, struct coi_config *config_r)
 	return ret;
 }
 
+int coi_config_set_enabled(struct mail_user *user, bool set)
+{
+	struct mail_namespace *ns = mail_namespace_find_inbox(user->namespaces);
+	struct mailbox *box;
+	struct mailbox_transaction_context *t;
+	struct mail_attribute_value value = {
+		.value = set ? "yes" : "no",
+	};
+	int ret = 0;
+
+	box = mailbox_alloc(ns->list, "INBOX", 0);
+	if (mailbox_open(box) < 0) {
+		i_error("coi: Can't set enabled metadata: "
+			"Failed to open INBOX: %s",
+			mailbox_get_last_internal_error(box, NULL));
+		mailbox_free(&box);
+		return -1;
+	}
+	t = mailbox_transaction_begin(box, 0, "coi metadata change");
+	if (mailbox_attribute_set(t, MAIL_ATTRIBUTE_TYPE_PRIVATE,
+				  MAILBOX_ATTRIBUTE_COI_CONFIG_ENABLED, &value) < 0) {
+		i_error("coi: Can't set enabled metadata: %s",
+			mailbox_get_last_internal_error(t->box, NULL));
+		ret = -1;
+		mailbox_transaction_rollback(&t);
+	} else if (mailbox_transaction_commit(&t) < 0) {
+		i_error("coi: Can't commit enabled metadata: %s",
+			mailbox_get_last_internal_error(t->box, NULL));
+		ret = -1;
+	}
+	mailbox_free(&box);
+	return ret;
+}
+
 static int
 coi_create_missing_mailbox(struct mail_user *user, const char *base_name,
 			   bool subscribe)
