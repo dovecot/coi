@@ -154,7 +154,9 @@ coi_attribute_config_enabled_set(struct mailbox_transaction_context *t,
 
 	if (mailbox_attribute_value_to_string(t->box->storage, value, &str) < 0)
 		return -1;
-	if (strcmp(str, "yes") == 0) {
+	if (str == NULL) {
+		return 0;
+	} else if (strcmp(str, "yes") == 0) {
 		if (coi_create_missing_mailboxes(t->box->storage->user) < 0)
 			return -1;
 	} else if (strcmp(str, "no") != 0) {
