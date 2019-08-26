@@ -11,6 +11,7 @@
 #include "http-url.h"
 #include "settings-parser.h"
 #include "mail-storage-private.h"
+#include "webpush-send.h"
 #include "webpush-subscription.h"
 
 #define WEBPUSH_DEFAULT_SUBSCRIPTION_EXPIRE_SECS (5*60)
@@ -511,9 +512,21 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 	base64_encode(buf, sizeof(buf), str);
 	subscription.validation = str_c(str);
 	subscription.create_time = ioloop_time;
-	//FIXME: send push notification
 
-	return webpush_subscription_store(t, device_key, &subscription);
+	/* send validation push-notification message */
+	string_t *msg = t_str_new(128);
+	str_append(msg, "{\"validation:\"");
+	json_append_escaped(msg, subscription.validation);
+	str_append(msg, "\"}");
+	if (!webpush_send(t->box->storage->user, &subscription, msg, &error)) {
+		/* webpush configuration is invalid */
+		mail_storage_set_error(t->box->storage, MAIL_ERROR_LIMIT,
+			t_strdup_printf("Failed to start endpoint validation: %s", error));
+		ret = -1;
+	} else {
+		ret = webpush_subscription_store(t, device_key, &subscription);
+	}
+	return ret;
 }
 
 static int
