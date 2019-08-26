@@ -1,8 +1,10 @@
 /* Copyright (c) 2018 Dovecot authors, see the included COPYING file */
 
 #include "lib.h"
+#include "str.h"
 #include "module-context.h"
 #include "mail-storage-private.h"
+#include "mailbox-list-private.h"
 #include "mail-search-build.h"
 #include "coi-common.h"
 #include "coi-config.h"
@@ -21,6 +23,110 @@ struct imap_coi_mailbox_transaction {
 static MODULE_CONTEXT_DEFINE_INIT(imap_coi_storage_module,
 				  &mail_storage_module_register);
 static MODULE_CONTEXT_DEFINE_INIT(imap_coi_mail_module, &mail_module_register);
+
+static bool coi_mailbox_is_trash(struct mail_namespace *ns, const char *vname)
+{
+	const struct mailbox_settings *set;
+
+	set = mailbox_settings_find(ns, vname);
+	if (set == NULL || set->special_use == NULL)
+		return FALSE;
+
+	const char *const *uses = t_strsplit_spaces(set->special_use, " ");
+	for (unsigned int i = 0; uses[i] != NULL; i++) {
+		if (strcasecmp(uses[i], "\\Trash") == 0)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+static bool coi_mailbox_has_parent_trash(struct mailbox *box)
+{
+	/* Accept hardcoded Trash name case-insensitively */
+	if (strncasecmp(box->name, "Trash", 5) == 0 &&
+	    box->name[5] == mailbox_list_get_hierarchy_sep(box->list))
+		return TRUE;
+
+	/* see if the mailbox parent has \Trash special-use flag set */
+	const char *p;
+	char sep = mail_namespace_get_sep(box->list->ns);
+	string_t *vname = t_str_new(64);
+	str_append(vname, box->vname);
+	while ((p = strrchr(str_c(vname), sep)) != NULL) {
+		str_truncate(vname, p - str_c(vname));
+		if (coi_mailbox_is_trash(box->list->ns, str_c(vname)))
+			return TRUE;
+	}
+	return FALSE;
+}
+
+static bool coi_mailbox_is_chats(struct mailbox *box)
+{
+	struct coi_context *coi_ctx = coi_get_user_context(box->storage->user);
+	if (box->list->ns != coi_ctx->root_ns)
+		return FALSE;
+
+	const char *chats_vname =
+		coi_mailbox_get_name(coi_ctx, COI_MAILBOX_CHATS);
+	return strcmp(box->vname, chats_vname) == 0;
+}
+
+static int
+imap_coi_mailbox_create(struct mailbox *box,
+			const struct mailbox_update *update, bool directory)
+{
+	union mailbox_module_context *icbox = IMAP_COI_STORAGE_CONTEXT(box);
+
+	if (!directory && coi_mailbox_is_chats(box)) {
+		/* Creating COI/Chats -> enable COI */
+		if (coi_config_set_enabled(box->storage->user, TRUE) < 0) {
+			mail_storage_set_internal_error(box->storage);
+			return -1;
+		}
+	}
+
+	return icbox->super.create_box(box, update, directory);
+}
+
+static int imap_coi_mailbox_delete(struct mailbox *box)
+{
+	union mailbox_module_context *icbox = IMAP_COI_STORAGE_CONTEXT(box);
+
+	if (coi_mailbox_is_chats(box)) {
+		if (coi_config_set_enabled(box->storage->user, FALSE) < 0) {
+			mail_storage_set_internal_error(box->storage);
+			return -1;
+		}
+	}
+
+	return icbox->super.delete_box(box);
+}
+
+static int imap_coi_mailbox_rename(struct mailbox *src, struct mailbox *dest)
+{
+	union mailbox_module_context *src_icbox = IMAP_COI_STORAGE_CONTEXT(src);
+
+	if (coi_mailbox_is_chats(src)) {
+		if (!coi_mailbox_has_parent_trash(dest)) {
+			mail_storage_set_error(src->storage, MAIL_ERROR_PARAMS,
+					       "COI mailbox can't be renamed");
+			return -1;
+		}
+		/* Renaming COI/Chats under Trash -> disable COI */
+		if (coi_config_set_enabled(src->storage->user, FALSE) < 0) {
+			mail_storage_set_internal_error(src->storage);
+			return -1;
+		}
+	} else if (coi_mailbox_is_chats(dest)) {
+		/* Renaming something to COI/Chats -> enable COI */
+		if (coi_config_set_enabled(src->storage->user, TRUE) < 0) {
+			mail_storage_set_internal_error(src->storage);
+			return -1;
+		}
+	}
+
+	return src_icbox->super.rename_box(src, dest);
+}
 
 static struct mailbox_transaction_context *
 imap_coi_mailbox_transaction_begin(struct mailbox *box,
@@ -149,6 +255,9 @@ static void imap_coi_mailbox_allocated(struct mailbox *box)
 	icbox->super = *v;
 	box->vlast = &icbox->super;
 
+	v->create_box = imap_coi_mailbox_create;
+	v->delete_box = imap_coi_mailbox_delete;
+	v->rename_box = imap_coi_mailbox_rename;
 	v->transaction_begin = imap_coi_mailbox_transaction_begin;
 	v->transaction_commit = imap_coi_mailbox_transaction_commit;
 	v->transaction_rollback = imap_coi_mailbox_transaction_rollback;
