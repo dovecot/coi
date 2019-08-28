@@ -104,7 +104,7 @@ get_vapid_private_dcrypt_key(struct mailbox *box,
 }
 
 static int
-get_vapid_public_key(struct mailbox *box, buffer_t *tmp_buffer)
+get_vapid_public_key(struct mailbox *box, string_t *key_str)
 {
 	struct dcrypt_private_key *priv_key;
 	struct dcrypt_public_key *pub_key;
@@ -119,7 +119,7 @@ get_vapid_public_key(struct mailbox *box, buffer_t *tmp_buffer)
 	dcrypt_key_unref_private(&priv_key);
 
 	if (!dcrypt_key_store_public(pub_key, DCRYPT_FORMAT_PEM,
-				     tmp_buffer, &error)) {
+				     key_str, &error)) {
 		i_error("webpush: User has invalid VAPID key - regenerating: "
 			"Can't store public key: %s", error);
 		ret = 0;
@@ -129,7 +129,7 @@ get_vapid_public_key(struct mailbox *box, buffer_t *tmp_buffer)
 }
 
 static int
-get_vapid_private_key(struct mailbox *box, buffer_t *tmp_buffer)
+get_vapid_private_key(struct mailbox *box, string_t *key_str)
 {
 	struct dcrypt_private_key *priv_key;
 	const char *error;
@@ -140,7 +140,7 @@ get_vapid_private_key(struct mailbox *box, buffer_t *tmp_buffer)
 		return ret;
 
 	if (!dcrypt_key_store_private(priv_key, DCRYPT_FORMAT_PEM, NULL,
-				      tmp_buffer, NULL, NULL, &error)) {
+				      key_str, NULL, NULL, &error)) {
 		i_error("webpush: User has invalid VAPID key - regenerating: "
 			"Can't store private key: %s", error);
 		ret = 0;
@@ -154,8 +154,7 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 					 struct mail_attribute_value *value_r)
 {
 	const char *error;
-
-	buffer_t *key_buffer = t_buffer_create(256);
+	string_t *key_str = t_str_new(256);
 	int ret;
 
 	if (!dcrypt_initialize(NULL, NULL, &error)) {
@@ -171,7 +170,7 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 
 	for(int i = 0; i < 2; i++) {
 		if (strcmp(key, MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PUBLIC_KEY) == 0) {
-			if ((ret = get_vapid_public_key(box, key_buffer)) == 1) {
+			if ((ret = get_vapid_public_key(box, key_str)) == 1) {
 				break;
 			} else if (ret == 0) {
 				if (generate_private_key(box, curve) < 0)
@@ -180,7 +179,7 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 				return -1;
 			}
 		} else if (strcmp(key, MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PRIVATE_KEY) == 0) {
-			if ((ret = get_vapid_private_key(box, key_buffer)) == 1) {
+			if ((ret = get_vapid_private_key(box, key_str)) == 1) {
 				break;
 			} else if (ret == 0) {
 				if (generate_private_key(box, curve) < 0)
@@ -194,9 +193,9 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 	}
 
 	/* we MUST have gotten something here */
-	i_assert(str_len(key_buffer) > 0);
+	i_assert(str_len(key_str) > 0);
 
-	value_r->value = str_c(key_buffer);
+	value_r->value = str_c(key_str);
 
 	return 1;
 }
