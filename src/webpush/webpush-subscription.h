@@ -78,4 +78,14 @@ int webpush_subscription_parse(struct istream *input, pool_t pool,
 
 const char *webpush_subscription_msgtype_to_string(enum webpush_subscription_msgtype msgtype);
 
+/* Extract auth and p256dh from subscription resource keys array.
+  - subscription - valid subscription
+  - auth_r - 'auth' key
+  - p256dh_r - 'p256dh' key
+*/
+int webpush_subscription_extract_aesgcm_keys(const struct webpush_subscription *subscription,
+			 		     buffer_t *auth, buffer_t *p256dh,
+			      	      	     const char **error_r);
+
+
 #endif

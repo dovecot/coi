@@ -2,6 +2,7 @@
 
 #include "lib.h"
 #include "array.h"
+#include "base64.h"
 #include "istream.h"
 #include "iso8601-date.h"
 #include "json-parser.h"
@@ -248,5 +249,45 @@ int webpush_subscription_parse(struct istream *input, pool_t pool,
 
 	if (json_parser_deinit(&parser, error_r) < 0)
 		return -1;
+	return 0;
+}
+
+int webpush_subscription_extract_aesgcm_keys(const struct webpush_subscription *subscription,
+					     buffer_t *auth_r, buffer_t *p256dh_r,
+					     const char **error_r)
+{
+	const struct webpush_resource_key *key;
+	bool have_auth = FALSE;
+	bool have_p256dh = FALSE;
+	i_assert(array_is_created(&subscription->resource_keys));
+
+	array_foreach(&subscription->resource_keys, key) {
+		if (strcmp(key->key, "auth") == 0) {
+			if (base64url_decode(BASE64_DECODE_FLAG_IGNORE_PADDING,
+					     key->value, strlen(key->value),
+					     auth_r) != 0) {
+				*error_r = "Invalid base64 encoded 'auth'";
+				return -1;
+			}
+			have_auth = TRUE;
+		} else if (strcmp(key->key, "p256dh") == 0) {
+			if (base64url_decode(BASE64_DECODE_FLAG_IGNORE_PADDING,
+					     key->value, strlen(key->value),
+					     p256dh_r) != 0) {
+				*error_r = "Invalid base64 encoded 'p256dh'";
+				return -1;
+			}
+			have_p256dh = TRUE;
+		}
+	}
+
+	if (!have_auth) {
+		*error_r = "Missing 'auth' in subscription";
+		return -1;
+	} else if (!have_p256dh) {
+		*error_r = "Missing 'p256dh' in subscription";
+		return -1;
+	}
+
 	return 0;
 }
