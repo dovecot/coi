@@ -37,7 +37,7 @@ store_vapid_key(struct mailbox_transaction_context *t, struct dcrypt_keypair *pa
 }
 
 static int
-generate_private_key(struct mailbox *box)
+generate_private_key(struct mailbox *box, struct dcrypt_private_key **priv_key_r)
 {
 	int ret;
 	struct dcrypt_keypair pair;
@@ -71,6 +71,8 @@ generate_private_key(struct mailbox *box)
 			mailbox_get_last_internal_error(box, NULL));
 		ret = -1;
 	} else {
+		dcrypt_key_ref_private(pair.priv);
+		*priv_key_r = pair.priv;
 		ret = 0;
 	}
 
@@ -105,26 +107,20 @@ get_vapid_private_dcrypt_key(struct mailbox *box,
 	return 1;
 }
 
-static int
-get_vapid_public_key(struct mailbox *box, string_t *key_str)
+static bool
+vapid_private_key_get_public_pem(struct dcrypt_private_key *priv_key,
+				 string_t *key_str)
 {
-	struct dcrypt_private_key *priv_key;
 	struct dcrypt_public_key *pub_key;
 	const char *error;
-	int ret;
-
-	ret = get_vapid_private_dcrypt_key(box, &priv_key);
-	if (ret <= 0)
-		return ret;
+	bool ret = TRUE;
 
 	dcrypt_key_convert_private_to_public(priv_key, &pub_key);
-	dcrypt_key_unref_private(&priv_key);
-
 	if (!dcrypt_key_store_public(pub_key, DCRYPT_FORMAT_PEM,
 				     key_str, &error)) {
 		i_error("webpush: User has invalid VAPID key - regenerating: "
 			"Can't store public key: %s", error);
-		ret = 0;
+		ret = FALSE;
 	}
 	dcrypt_key_unref_public(&pub_key);
 	return ret;
@@ -135,6 +131,7 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box,
 					 const char *key ATTR_UNUSED,
 					 struct mail_attribute_value *value_r)
 {
+	struct dcrypt_private_key *priv_key;
 	const char *error;
 	string_t *key_str = t_str_new(256);
 	int ret;
@@ -146,19 +143,25 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box,
 		return -1;
 	}
 
-	if ((ret = get_vapid_public_key(box, key_str)) < 0)
+	/* try to use the existing key */
+	if ((ret = get_vapid_private_dcrypt_key(box, &priv_key)) < 0)
 		return -1;
 	if (ret == 0) {
-		if (generate_private_key(box) < 0)
+		/* generate a missing key */
+		if (generate_private_key(box, &priv_key) < 0)
 			return -1;
-		if ((ret = get_vapid_public_key(box, key_str)) < 0)
+	}
+
+	if (!vapid_private_key_get_public_pem(priv_key, key_str)) {
+		if (generate_private_key(box, &priv_key) < 0)
 			return -1;
-		if (ret == 0) {
+		if (!vapid_private_key_get_public_pem(priv_key, key_str)) {
 			mail_storage_set_critical(box->storage,
 				"webpush: Failed to regenerate a usable vapid key");
 			return -1;
 		}
 	}
+	dcrypt_key_unref_private(&priv_key);
 
 	/* we MUST have gotten something here */
 	i_assert(str_len(key_str) > 0);
