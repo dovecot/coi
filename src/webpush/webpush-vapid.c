@@ -37,20 +37,22 @@ store_vapid_key(struct mailbox_transaction_context *t, struct dcrypt_keypair *pa
 }
 
 static int
-generate_private_key(struct mailbox *box, const char *curve)
+generate_private_key(struct mailbox *box)
 {
 	int ret;
 	struct dcrypt_keypair pair;
-	const char *error;
+	const char *curve, *error;
 
 	/* try to open mailbox */
 	if (mailbox_open(box) < 0)
 		return -1;
 
 	/* try to generate new key pair */
-	/* FIXME: Move curve selection to configuration */
-	if (!dcrypt_keypair_generate(&pair, DCRYPT_KEY_EC, 0, curve,
-				     &error)) {
+	curve = mail_user_plugin_getenv(box->storage->user,
+					"webpush_vapid_curve");
+	if (curve == NULL || *curve == '\0')
+		curve = "prime256v1";
+	if (!dcrypt_keypair_generate(&pair, DCRYPT_KEY_EC, 0, curve, &error)) {
 		i_error("dcrypt_keypair_generate(%s): %s", curve, error);
 		mail_storage_set_error(box->storage, MAIL_ERROR_TEMP,
 				      "Cannot generate crypto key");
@@ -164,16 +166,12 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 		return -1;
 	}
 
-	const char *curve = mail_user_plugin_getenv(box->storage->user, "webpush_vapid_curve");
-	if (curve == NULL || *curve == '\0')
-		curve = "prime256v1";
-
 	for(int i = 0; i < 2; i++) {
 		if (strcmp(key, MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PUBLIC_KEY) == 0) {
 			if ((ret = get_vapid_public_key(box, key_str)) == 1) {
 				break;
 			} else if (ret == 0) {
-				if (generate_private_key(box, curve) < 0)
+				if (generate_private_key(box) < 0)
 					return -1;
 			} else {
 				return -1;
@@ -182,7 +180,7 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 			if ((ret = get_vapid_private_key(box, key_str)) == 1) {
 				break;
 			} else if (ret == 0) {
-				if (generate_private_key(box, curve) < 0)
+				if (generate_private_key(box) < 0)
 					return -1;
 			} else {
 				return -1;
