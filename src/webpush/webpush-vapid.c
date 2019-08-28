@@ -126,14 +126,10 @@ vapid_private_key_get_public_pem(struct dcrypt_private_key *priv_key,
 	return ret;
 }
 
-static int
-webpush_attribute_metadata_get_vapid_key(struct mailbox *box,
-					 const char *key ATTR_UNUSED,
-					 struct mail_attribute_value *value_r)
+int webpush_vapid_key_get(struct mailbox *box,
+			  struct dcrypt_private_key **priv_key_r)
 {
-	struct dcrypt_private_key *priv_key;
 	const char *error;
-	string_t *key_str = t_str_new(256);
 	int ret;
 
 	if (!dcrypt_initialize(NULL, NULL, &error)) {
@@ -144,13 +140,26 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box,
 	}
 
 	/* try to use the existing key */
-	if ((ret = get_vapid_private_dcrypt_key(box, &priv_key)) < 0)
+	if ((ret = get_vapid_private_dcrypt_key(box, priv_key_r)) < 0)
 		return -1;
 	if (ret == 0) {
 		/* generate a missing key */
-		if (generate_private_key(box, &priv_key) < 0)
+		if (generate_private_key(box, priv_key_r) < 0)
 			return -1;
 	}
+	return 0;
+}
+
+static int
+webpush_attribute_metadata_get_vapid_key(struct mailbox *box,
+					 const char *key ATTR_UNUSED,
+					 struct mail_attribute_value *value_r)
+{
+	struct dcrypt_private_key *priv_key;
+	string_t *key_str = t_str_new(256);
+
+	if (webpush_vapid_key_get(box, &priv_key) < 0)
+		return -1;
 
 	if (!vapid_private_key_get_public_pem(priv_key, key_str)) {
 		if (generate_private_key(box, &priv_key) < 0)

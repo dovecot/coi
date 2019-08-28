@@ -1,6 +1,9 @@
 #ifndef WEBPUSH_VAPID_H
 #define WEBPUSH_VAPID_H
 
+struct dcrypt_private_key;
+struct mailbox;
+
 #include "webpush-plugin.h"
 
 /**
@@ -14,6 +17,10 @@
 
 #define MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PUBLIC_KEY \
 	MAILBOX_ATTRIBUTE_WEBPUSH_PUBLIC_PREFIX"vapid"
+
+/* Lookup vapid key from attributes, or generate it if it's missing. */
+int webpush_vapid_key_get(struct mailbox *box,
+			  struct dcrypt_private_key **priv_key_r);
 
 void webpush_vapid_init(void);
 
