@@ -16,18 +16,10 @@ store_vapid_key(struct mailbox_transaction_context *t, struct dcrypt_keypair *pa
 {
 	struct mail_attribute_value value;
 	buffer_t *buf_priv = t_buffer_create(256);
-	buffer_t *buf_pub = t_buffer_create(256);
 	i_zero(&value);
 	/* export private key */
 	if (!dcrypt_key_store_private(pair->priv, DCRYPT_FORMAT_DOVECOT, NULL,
 				      buf_priv, NULL, NULL, error_r)) {
-		mail_storage_set_error(t->box->storage, MAIL_ERROR_TEMP,
-				       "Cannot generate crypto key");
-		return -1;
-	}
-
-	if (!dcrypt_key_store_public(pair->pub, DCRYPT_FORMAT_DOVECOT,
-				     buf_pub, error_r)) {
 		mail_storage_set_error(t->box->storage, MAIL_ERROR_TEMP,
 				       "Cannot generate crypto key");
 		return -1;
