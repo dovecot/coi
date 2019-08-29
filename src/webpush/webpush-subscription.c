@@ -10,7 +10,9 @@
 #include "json-parser.h"
 #include "http-url.h"
 #include "settings-parser.h"
+#include "dcrypt.h"
 #include "mail-storage-private.h"
+#include "webpush-vapid.h"
 #include "webpush-send.h"
 #include "webpush-subscription.h"
 
@@ -439,6 +441,7 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 				   const struct mail_attribute_value *value)
 {
 	struct webpush_subscription subscription;
+	struct dcrypt_private_key *vapid_key;
 	const char *p, *device_key, *storage_key, *error;
 	int ret;
 
@@ -509,6 +512,9 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 		return -1;
 	}
 
+	if (webpush_vapid_key_get(t->box, &vapid_key) < 0)
+		return -1;
+
 	random_fill(buf, sizeof(buf));
 	base64_encode(buf, sizeof(buf), str);
 	subscription.validation = str_c(str);
@@ -519,7 +525,8 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 	str_append(msg, "{\"validation:\"");
 	json_append_escaped(msg, subscription.validation);
 	str_append(msg, "\"}");
-	if (!webpush_send(t->box->storage->user, &subscription, msg, &error)) {
+	if (!webpush_send(t->box->storage->user, &subscription,
+			  vapid_key, msg, &error)) {
 		/* webpush configuration is invalid */
 		mail_storage_set_error(t->box->storage, MAIL_ERROR_LIMIT,
 			t_strdup_printf("Failed to start endpoint validation: %s", error));
@@ -527,6 +534,7 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 	} else {
 		ret = webpush_subscription_store(t, device_key, &subscription);
 	}
+	dcrypt_key_unref_private(&vapid_key);
 	return ret;
 }
 

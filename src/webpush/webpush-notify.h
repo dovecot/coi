@@ -11,6 +11,7 @@
 struct webpush_notify_cache {
 	pool_t pool;
 	time_t expire_time;
+	struct dcrypt_private_key *vapid_key;
 	ARRAY_TYPE(webpush_subscription) subscriptions;
 };
 

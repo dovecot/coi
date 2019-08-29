@@ -9,6 +9,7 @@
 #include "module-context.h"
 #include "message-size.h"
 #include "http-client.h"
+#include "dcrypt.h"
 
 #include "push-notification-plugin.h"
 #include "push-notification-drivers.h"
@@ -20,6 +21,7 @@
 #include "webpush-subscription.h"
 #include "webpush-message.h"
 #include "webpush-send.h"
+#include "webpush-vapid.h"
 #include "webpush-notify.h"
 
 #define DEFAULT_CACHE_LIFETIME_SECS 60
@@ -108,7 +110,8 @@ webpush_notify_init(struct push_notification_driver_config *config,
 
 static int
 webpush_notify_read_config(struct mail_user *user, pool_t pool,
-			   ARRAY_TYPE(webpush_subscription) *subscriptions)
+			   ARRAY_TYPE(webpush_subscription) *subscriptions,
+			   struct dcrypt_private_key **vapid_key_r)
 {
 	struct mail_namespace *ns = mail_namespace_find_inbox(user->namespaces);
 	struct mailbox *box;
@@ -116,6 +119,8 @@ webpush_notify_read_config(struct mail_user *user, pool_t pool,
 
 	box = mailbox_alloc(ns->list, "INBOX", 0);
 	ret = webpush_subscriptions_read(box, pool, TRUE, subscriptions);
+	if (ret == 0)
+		ret = webpush_vapid_key_get(box, vapid_key_r);
 	mailbox_free(&box);
 	return ret;
 }
@@ -140,14 +145,17 @@ webpush_notify_cache_get(struct push_notification_driver_txn *dtxn,
 		cache->pool = pool_alloconly_create(
 			MEMPOOL_GROWING"webpush notify cache", 1024);
 	} else {
+		if (cache->vapid_key != NULL)
+			dcrypt_key_unref_private(&cache->vapid_key);
 		p_clear(cache->pool);
 	}
 
-	/* read existing subscriptions */
+	/* read existing subscriptions and vapid key */
 	p_array_init(&cache->subscriptions, cache->pool,
 		     WEBPUSH_DEFAULT_SUBSCRIPTION_LIMIT);
 	if (webpush_notify_read_config(dtxn->ptxn->muser, cache->pool,
-				       &cache->subscriptions) < 0)
+				       &cache->subscriptions,
+				       &cache->vapid_key) < 0)
 		return FALSE;
 
 	cache->expire_time = ioloop_time + dconfig->cache_lifetime_secs;
@@ -277,7 +285,8 @@ webpush_notify_process_msg(struct push_notification_driver_txn *dtxn,
 	array_foreach(&cache->subscriptions, subscription) {
 		if (!webpush_notify_subscription_want(subscription, messagenew))
 			continue;
-		(void)webpush_send(user, subscription, msg_text, &error);
+		(void)webpush_send(user, subscription, cache->vapid_key,
+				   msg_text, &error);
 	}
 }
 
@@ -293,6 +302,8 @@ webpush_notify_deinit(struct push_notification_driver_user *duser)
 		webpush_global->refcount--;
 	}
 	i_free(dconfig->http_rawlog_dir);
+	if (dconfig->cache.vapid_key != NULL)
+		dcrypt_key_unref_private(&dconfig->cache.vapid_key);
 	pool_unref(&dconfig->cache.pool);
 	event_unref(&dconfig->event);
 }

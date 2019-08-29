@@ -117,6 +117,7 @@ webpush_notify_http_callback(const struct http_response *response,
 
 bool webpush_send(struct mail_user *user,
 		  const struct webpush_subscription *subscription,
+		  struct dcrypt_private_key *vapid_key ATTR_UNUSED,
 		  string_t *msg, const char **error_r)
 {
 	struct webpush_mail_user *wuser = WEBPUSH_USER_CONTEXT(user);
