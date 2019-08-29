@@ -131,28 +131,8 @@ get_vapid_public_key(struct mailbox *box, string_t *key_str)
 }
 
 static int
-get_vapid_private_key(struct mailbox *box, string_t *key_str)
-{
-	struct dcrypt_private_key *priv_key;
-	const char *error;
-	int ret;
-
-	ret = get_vapid_private_dcrypt_key(box, &priv_key);
-	if (ret <= 0)
-		return ret;
-
-	if (!dcrypt_key_store_private(priv_key, DCRYPT_FORMAT_PEM, NULL,
-				      key_str, NULL, NULL, &error)) {
-		i_error("webpush: User has invalid VAPID key - regenerating: "
-			"Can't store private key: %s", error);
-		ret = 0;
-	}
-	dcrypt_key_unref_private(&priv_key);
-	return ret;
-}
-
-static int
-webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
+webpush_attribute_metadata_get_vapid_key(struct mailbox *box,
+					 const char *key ATTR_UNUSED,
 					 struct mail_attribute_value *value_r)
 {
 	const char *error;
@@ -167,26 +147,13 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box, const char *key,
 	}
 
 	for(int i = 0; i < 2; i++) {
-		if (strcmp(key, MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PUBLIC_KEY) == 0) {
-			if ((ret = get_vapid_public_key(box, key_str)) == 1) {
-				break;
-			} else if (ret == 0) {
-				if (generate_private_key(box) < 0)
-					return -1;
-			} else {
+		if ((ret = get_vapid_public_key(box, key_str)) == 1) {
+			break;
+		} else if (ret == 0) {
+			if (generate_private_key(box) < 0)
 				return -1;
-			}
-		} else if (strcmp(key, MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PRIVATE_KEY) == 0) {
-			if ((ret = get_vapid_private_key(box, key_str)) == 1) {
-				break;
-			} else if (ret == 0) {
-				if (generate_private_key(box) < 0)
-					return -1;
-			} else {
-				return -1;
-			}
 		} else {
-			i_unreached();
+			return -1;
 		}
 	}
 
@@ -208,18 +175,7 @@ iattr_webpush_metadata_vapid_public_key = {
 	.get = webpush_attribute_metadata_get_vapid_key,
 };
 
-static const struct mailbox_attribute_internal
-iattr_webpush_metadata_vapid_private_key = {
-	.type = MAIL_ATTRIBUTE_TYPE_PRIVATE,
-	.key = MAILBOX_ATTRIBUTE_WEBPUSH_VAPID_PRIVATE_KEY,
-	.rank = MAIL_ATTRIBUTE_INTERNAL_RANK_AUTHORITY,
-	.flags = MAIL_ATTRIBUTE_INTERNAL_FLAG_VALIDATED,
-
-	.get = webpush_attribute_metadata_get_vapid_key,
-};
-
 void webpush_vapid_init(void)
 {
 	mailbox_attribute_register_internal(&iattr_webpush_metadata_vapid_public_key);
-	mailbox_attribute_register_internal(&iattr_webpush_metadata_vapid_private_key);
 }
