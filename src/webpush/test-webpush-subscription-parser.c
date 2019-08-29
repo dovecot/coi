@@ -12,18 +12,18 @@ static struct {
 	struct webpush_subscription subscription;
 } tests[] = {
 	/* invalid JSON */
-	{ .input = "\"create_time\": \"2019-08-16T17:59:56Z\"", .success = FALSE },
-	{ .input = "{ \"create_time\": \"2019-08-16T17:59:56Z\"", .success = FALSE },
-	{ .input = "{ \"create_time\": \"2019-08-16T17:59:56Z\" }{}", .success = FALSE },
+	{ .input = "\"created\": \"2019-08-16T17:59:56Z\"", .success = FALSE },
+	{ .input = "{ \"created\": \"2019-08-16T17:59:56Z\"", .success = FALSE },
+	{ .input = "{ \"created\": \"2019-08-16T17:59:56Z\" }{}", .success = FALSE },
 
-	/* create_time */
-	{ .input = "{ \"create_time\": \"2019-08-16T17:59:56Z\" }",
+	/* created */
+	{ .input = "{ \"created\": \"2019-08-16T17:59:56Z\" }",
 	  .success = TRUE,
 	  .subscription = { .create_time = 1565978396 },
 	},
-	{ .input = "{ \"create_time\": \"2019-08-16T17:59:56\" }", .success = FALSE },
-	{ .input = "{ \"create_time\": \"12345678\" }", .success = FALSE },
-	{ .input = "{ \"create_time\": 12345678 }", .success = FALSE },
+	{ .input = "{ \"created\": \"2019-08-16T17:59:56\" }", .success = FALSE },
+	{ .input = "{ \"created\": \"12345678\" }", .success = FALSE },
+	{ .input = "{ \"created\": 12345678 }", .success = FALSE },
 
 	/* validation */
 	{ .input = "{ \"validation\": \"foobar\" }",

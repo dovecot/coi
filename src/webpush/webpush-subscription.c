@@ -131,7 +131,7 @@ webpush_subscription_to_string(const struct webpush_subscription *subscription,
 	string_t *str = t_str_new(128);
 
 	str_append_c(str, '{');
-	str_printfa(str, "\"create_time\":\"%s\"",
+	str_printfa(str, "\"created\":\"%s\"",
 		    iso8601_date_create(subscription->create_time));
 	if (internal) {
 		webpush_append_keyvalue(str, "validation",

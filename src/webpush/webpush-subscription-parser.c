@@ -187,7 +187,7 @@ webpush_subscription_parse_root(struct json_parser *parser, pool_t pool,
 			parse_type = PARSE_MSGTYPE;
 		else if (strcmp(key, "validation") == 0)
 			value_p = &subscription_r->validation;
-		else if (strcmp(key, "create_time") == 0)
+		else if (strcmp(key, "created") == 0)
 			parse_type = PARSE_CREATE_TIME;
 		else if (strcmp(key, "resource") == 0) {
 			if (!webpush_subscription_parse_resource(parser, pool, subscription_r, error_r))
@@ -219,7 +219,7 @@ webpush_subscription_parse_root(struct json_parser *parser, pool_t pool,
 						strlen(value),
 						&subscription_r->create_time,
 						&tz)) {
-				*error_r = "create_time: Invalid value";
+				*error_r = "created: Invalid value";
 				return FALSE;
 			}
 			break;
