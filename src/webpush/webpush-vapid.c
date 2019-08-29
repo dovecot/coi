@@ -146,13 +146,16 @@ webpush_attribute_metadata_get_vapid_key(struct mailbox *box,
 		return -1;
 	}
 
-	for(int i = 0; i < 2; i++) {
-		if ((ret = get_vapid_public_key(box, key_str)) == 1) {
-			break;
-		} else if (ret == 0) {
-			if (generate_private_key(box) < 0)
-				return -1;
-		} else {
+	if ((ret = get_vapid_public_key(box, key_str)) < 0)
+		return -1;
+	if (ret == 0) {
+		if (generate_private_key(box) < 0)
+			return -1;
+		if ((ret = get_vapid_public_key(box, key_str)) < 0)
+			return -1;
+		if (ret == 0) {
+			mail_storage_set_critical(box->storage,
+				"webpush: Failed to regenerate a usable vapid key");
 			return -1;
 		}
 	}
