@@ -1,6 +1,7 @@
 /* Copyright (c) 2019 Dovecot authors, see the included COPYING file */
 
 #include "lib.h"
+#include "ioloop.h"
 #include "istream.h"
 #include "str.h"
 #include "http-client.h"
@@ -8,11 +9,14 @@
 #include "iostream-ssl.h"
 #include "mail-user.h"
 #include "mail-storage.h"
+#include "json-parser.h"
 #include "webpush-subscription.h"
 #include "webpush-notify.h"
+#include "webpush-payload.h"
 #include "webpush-message.h"
 #include "webpush-send.h"
 
+#define WEBPUSH_TTL_SECS 30 //FIXME: configurable?
 #define WEBPUSH_ERROR_RETRY_MSECS 1000
 
 struct webpush_send_context {
@@ -117,13 +121,14 @@ webpush_notify_http_callback(const struct http_response *response,
 
 bool webpush_send(struct mail_user *user,
 		  const struct webpush_subscription *subscription,
-		  struct dcrypt_private_key *vapid_key ATTR_UNUSED,
+		  struct dcrypt_private_key *vapid_key,
 		  string_t *msg, const char **error_r)
 {
 	struct webpush_mail_user *wuser = WEBPUSH_USER_CONTEXT(user);
 	struct webpush_notify_config *dconfig = wuser->dconfig;
 	struct istream *payload;
 	struct webpush_send_context *ctx;
+	const char *error;
 
 	i_assert(subscription->device_key != NULL);
 
@@ -132,6 +137,67 @@ bool webpush_send(struct mail_user *user,
 		return FALSE;
 	}
 	webpush_send_global_init(user, dconfig);
+
+	/* encrypt the msg */
+	buffer_t *ephemeral_key = t_buffer_create(65);
+	buffer_t *salt = t_buffer_create(16);
+	uint16_t padding = (1024 - (str_len(msg) % 1024)) % 1024;
+	if (padding > WEBPUSH_MSG_MAX_PLAINTEXT_LEN - str_len(msg))
+		padding = WEBPUSH_MSG_MAX_PLAINTEXT_LEN - str_len(msg);
+
+	size_t encryped_msg_max_size = str_len(msg) + padding + 16 + 8;
+	buffer_t *encrypted_msg =
+		buffer_create_dynamic(default_pool, encryped_msg_max_size);
+	if (webpush_payload_encrypt(subscription,
+				    PAYLOAD_ENCRYPTION_TYPE_AES128GCM,
+				    msg, padding, ephemeral_key, salt,
+				    encrypted_msg, &error) < 0) {
+		e_debug(dconfig->event, "Failed to encrypt payload: %s", error);
+		webpush_notify_delete_subscription(user, subscription->device_key);
+		buffer_free(&encrypted_msg);
+		*error_r = "Failed to encrypt payload";
+		return FALSE;
+	}
+	/* make sure the buffer sizes were chosen well */
+	i_assert(buffer_get_writable_size(ephemeral_key) == 65);
+	i_assert(buffer_get_writable_size(salt) == 16);
+	i_assert(buffer_get_writable_size(encrypted_msg) == encryped_msg_max_size);
+
+	size_t encrypted_full_max_size =
+		salt->used + 4 + 1 + ephemeral_key->used + encrypted_msg->used;
+	buffer_t *encrypted_full =
+		buffer_create_dynamic(default_pool, encrypted_full_max_size);
+	/* "rs" must be greater than the full payload */
+	uint32_t record_len = cpu32_to_be(WEBPUSH_MSG_MAX_ENCRYPTED_SIZE+1);
+	buffer_append(encrypted_full, salt->data, salt->used);
+	buffer_append(encrypted_full, &record_len, sizeof(record_len));
+	buffer_append_c(encrypted_full, ephemeral_key->used);
+	buffer_append(encrypted_full, ephemeral_key->data, ephemeral_key->used);
+	buffer_append(encrypted_full, encrypted_msg->data, encrypted_msg->used);
+	i_assert(buffer_get_writable_size(encrypted_full) == encrypted_full_max_size);
+	buffer_free(&encrypted_msg);
+
+	/* create JWT header, which signs the encrypted_full with
+	   the VAPID key */
+	string_t *b64_token = t_str_new(128);
+	string_t *b64_key = t_str_new(128);
+	string_t *jwt_body = t_str_new(128);
+	str_append(jwt_body, "{ \"aud\":\"");
+	if (!subscription->resource_endpoint_http_url->have_ssl)
+		uri_append_scheme(jwt_body, "http");
+	else
+		uri_append_scheme(jwt_body, "https");
+	uri_append_host(jwt_body, &subscription->resource_endpoint_http_url->host);
+	str_printfa(jwt_body, "\",\"iat\":%"PRIdTIME_T",\"exp\":%"PRIdTIME_T"}",
+		    ioloop_time, ioloop_time + WEBPUSH_TTL_SECS);
+	if (webpush_payload_sign(jwt_body, vapid_key,
+				 b64_token, b64_key, &error) < 0) {
+		e_debug(dconfig->event, "Failed to sign payload: %s", error);
+		webpush_notify_delete_subscription(user, subscription->device_key);
+		buffer_free(&encrypted_full);
+		*error_r = "Failed to sign payload";
+		return FALSE;
+	}
 
 	ctx = i_new(struct webpush_send_context, 1);
 	ctx->user = user;
@@ -144,17 +210,19 @@ bool webpush_send(struct mail_user *user,
 		subscription->resource_endpoint_http_url,
 		webpush_notify_http_callback, ctx);
 	http_client_request_set_event(ctx->request, dconfig->event);
-	http_client_request_add_header(ctx->request, "Content-Type",
-				       "application/json; charset=utf-8");
+	http_client_request_add_header(ctx->request, "TTL", dec2str(WEBPUSH_TTL_SECS));
+	http_client_request_add_header(ctx->request, "Content-Encoding", "aes128gcm");
+	http_client_request_add_header(ctx->request, "Authorization",
+		t_strdup_printf("vapid t=%s, k=%s", str_c(b64_token), str_c(b64_key)));
 
 	e_debug(dconfig->event, "Sending notification: %s", str_c(msg));
 
-	/* FIXME: encrypt the string */
-
-	payload = i_stream_create_copy_from_string(msg);
+	i_assert(encrypted_full->used <= WEBPUSH_MSG_MAX_ENCRYPTED_SIZE);
+	payload = i_stream_create_copy_from_string(encrypted_full);
 	http_client_request_set_payload(ctx->request, payload, FALSE);
 
 	http_client_request_submit(ctx->request);
 	i_stream_unref(&payload);
+	buffer_free(&encrypted_full);
 	return TRUE;
 }
