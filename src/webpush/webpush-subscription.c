@@ -496,6 +496,7 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 			t_strdup_printf("Invalid JSON: %s", error));
 		return -1;
 	}
+	subscription.device_key = device_key;
 
 	/* Starting device subscription. Generate a new unique
 	   validation string and send it as a push notification. */
