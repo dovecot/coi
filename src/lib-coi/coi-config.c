@@ -158,10 +158,14 @@ coi_create_missing_mailbox(struct mail_user *user, const char *base_name,
 
 	box = mailbox_alloc(coi_ctx->root_ns->list, name, 0);
 	mailbox_set_reason(box, "Enabling COI autocreates");
-	if ((ret = mailbox_create(box, NULL, FALSE)) < 0)
-		i_error("coi: Failed to create mailbox %s: %s", name,
-			mailbox_get_last_error(box, NULL));
-	else if (!subscribe)
+	if ((ret = mailbox_create(box, NULL, FALSE)) < 0) {
+		enum mail_error error;
+		const char *errstr = mailbox_get_last_error(box, &error);
+		if (error == MAIL_ERROR_EXISTS)
+			ret = 0;
+		else
+			i_error("coi: Failed to create mailbox %s: %s", name, errstr);
+	} else if (!subscribe)
 		;
 	else if ((ret = mailbox_set_subscribed(box, TRUE)) < 0) {
 		i_error("coi: Failed to subscribe to mailbox %s: %s", name,
