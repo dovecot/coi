@@ -269,18 +269,27 @@ static const char *jwt_body = "{\"aud\":\"https://push.example.net\","
 			      "\"mailto:push@example.com\"}";
 
 static void test_payload_signing_verify(struct dcrypt_public_key *pubkey2,
-					string_t *token, string_t *jwk)
+					string_t *token, string_t *k)
 {
 	const char *const *parts = t_strsplit(str_c(token), ".");
 	buffer_t *hdr = t_base64url_decode_str(parts[0]);
 	buffer_t *body = t_base64url_decode_str(parts[1]);
 	buffer_t *to_verify = t_buffer_create(hdr->used + body->used);
 	buffer_t *sig = t_base64url_decode_str(parts[2]);
-	string_t *jwk_dec = t_base64url_decode_str(str_c(jwk));
+	buffer_t *raw_dec = t_base64url_decode_str(str_c(k));
+	buffer_t *oid_buffer = t_buffer_create(80);
 	bool valid = FALSE;
 	struct dcrypt_public_key *pubkey;
-
-	test_assert(dcrypt_key_load_public(&pubkey, str_c(jwk_dec), NULL));
+	test_assert(dcrypt_name2oid(WEBPUSH_CURVE, oid_buffer, NULL));
+	ARRAY_TYPE(dcrypt_raw_key) raw_key;
+	t_array_init(&raw_key, 2);
+	struct dcrypt_raw_key *param = array_append_space(&raw_key);
+	param->parameter = oid_buffer->data;
+	param->len = oid_buffer->used;
+	param = array_append_space(&raw_key);
+	param->parameter = raw_dec->data;
+	param->len = raw_dec->used;
+	test_assert(dcrypt_key_load_public_raw(&pubkey, DCRYPT_KEY_EC, &raw_key, NULL));
 	test_assert_strcmp(str_c(hdr), jwt_header);
 	test_assert_strcmp(str_c(body), jwt_body);
 	buffer_append(to_verify, hdr->data, hdr->used);

@@ -258,16 +258,20 @@ int webpush_payload_sign(const buffer_t *payload, struct dcrypt_private_key *key
 {
 	buffer_t *sig = t_buffer_create(256);
 	buffer_t *to_sign = t_buffer_create(256);
-	buffer_t *jwk = t_buffer_create(256);
 	string_t *hdr = t_str_new(64);
-
+	ARRAY_TYPE(dcrypt_raw_key) raw_key;
+	enum dcrypt_key_type kt;
+	const struct dcrypt_raw_key *param;
 	struct dcrypt_public_key *pubkey = NULL;
 
 	dcrypt_key_convert_private_to_public(key, &pubkey);
-	if (!dcrypt_key_store_public(pubkey, DCRYPT_FORMAT_JWK, jwk, error_r)) {
+	t_array_init(&raw_key, 2);
+	if (!dcrypt_key_store_public_raw(pubkey, pool_datastack_create(),
+					 &kt, &raw_key, error_r)) {
 		dcrypt_key_unref_public(&pubkey);
 		return -1;
 	}
+	i_assert(kt == DCRYPT_KEY_EC);
 
 	str_append(hdr, JWT_SIGN_HEADER);
 
@@ -292,7 +296,8 @@ int webpush_payload_sign(const buffer_t *payload, struct dcrypt_private_key *key
 	str_append_c(b64_token_r, '.');
 	base64url_encode(BASE64_ENCODE_FLAG_NO_PADDING, 0,
 			 sig->data, sig->used, b64_token_r);
+	param = array_idx(&raw_key, 1);
 	base64url_encode(BASE64_ENCODE_FLAG_NO_PADDING, 0,
-			 jwk->data, jwk->used, b64_key_r);
+			 param->parameter, param->len, b64_key_r);
 	return 0;
 }
