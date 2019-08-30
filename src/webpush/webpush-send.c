@@ -187,6 +187,7 @@ bool webpush_send(struct mail_user *user,
 		uri_append_scheme(jwt_body, "http");
 	else
 		uri_append_scheme(jwt_body, "https");
+	str_append(jwt_body, "//");
 	uri_append_host(jwt_body, &subscription->resource_endpoint_http_url->host);
 	str_printfa(jwt_body, "\",\"iat\":%"PRIdTIME_T",\"exp\":%"PRIdTIME_T"}",
 		    ioloop_time, ioloop_time + WEBPUSH_TTL_SECS);
