@@ -77,8 +77,6 @@ generate_private_key(struct mailbox *box, struct dcrypt_private_key **priv_key_r
 	}
 
 	dcrypt_keypair_unref(&pair);
-	mailbox_close(box);
-
 	return ret;
 }
 
