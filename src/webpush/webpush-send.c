@@ -125,17 +125,18 @@ bool webpush_send(struct mail_user *user,
 		  string_t *msg, const char **error_r)
 {
 	struct webpush_mail_user *wuser = WEBPUSH_USER_CONTEXT(user);
-	struct webpush_notify_config *dconfig = wuser->dconfig;
+	struct webpush_notify_config *dconfig;
 	struct istream *payload;
 	struct webpush_send_context *ctx;
 	const char *error;
 
 	i_assert(subscription->device_key != NULL);
 
-	if (dconfig == NULL) {
+	if (wuser == NULL) {
 		*error_r = "Webpush not enabled";
 		return FALSE;
 	}
+	dconfig = wuser->dconfig;
 	webpush_send_global_init(user, dconfig);
 
 	/* encrypt the msg */
