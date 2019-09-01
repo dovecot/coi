@@ -528,7 +528,7 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 	if (!webpush_send(t->box->storage->user, &subscription,
 			  vapid_key, msg, &error)) {
 		/* webpush configuration is invalid */
-		mail_storage_set_error(t->box->storage, MAIL_ERROR_LIMIT,
+		mail_storage_set_error(t->box->storage, MAIL_ERROR_UNAVAILABLE,
 			t_strdup_printf("Failed to start endpoint validation: %s", error));
 		ret = -1;
 	} else {
