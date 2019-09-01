@@ -39,7 +39,7 @@ buffer_t *webpush_payload_pad_data(enum webpush_payload_encryption_type enc_type
 		}
 		buffer_append(result, plaintext->data, plaintext->used);
 		i_assert(result->used == buflen);
-		break;
+		return result;
 	case PAYLOAD_ENCRYPTION_TYPE_AES128GCM:
 		/* 0x02 + padding */
 		buflen = 1 + pad_len + plaintext->used;
@@ -52,9 +52,9 @@ buffer_t *webpush_payload_pad_data(enum webpush_payload_encryption_type enc_type
 			buffer_append_c(result, c);
 		}
 		i_assert(result->used == buflen);
-		break;
+		return result;
 	}
-	return result;
+	i_unreached();
 }
 
 void webpush_payload_calculate_key_nonce(enum webpush_payload_encryption_type enc_type,

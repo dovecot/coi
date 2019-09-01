@@ -194,6 +194,7 @@ webpush_notify_subscription_want(const struct webpush_subscription *subscription
 
 	switch (subscription->msgtype) {
 	case WEBPUSH_SUBSCRIPTION_MSGTYPE_UNKNOWN:
+	default:
 		i_unreached();
 	case WEBPUSH_SUBSCRIPTION_MSGTYPE_ANY:
 		return TRUE;
