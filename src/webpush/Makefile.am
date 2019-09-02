@@ -1,7 +1,8 @@
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/lib-coi \
 	$(LIBDOVECOT_INCLUDE) \
-	$(LIBDOVECOT_STORAGE_INCLUDE)
+	$(LIBDOVECOT_STORAGE_INCLUDE) \
+	$(LIBDOVECOT_PUSH_NOTIFICATION_INCLUDE)
 
 lib30_webpush_plugin_la_LDFLAGS = -module -avoid-version
 
