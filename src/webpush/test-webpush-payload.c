@@ -294,11 +294,12 @@ static void test_payload_signing_verify(struct dcrypt_public_key *pubkey2,
 	test_assert(dcrypt_key_load_public_raw(&pubkey, DCRYPT_KEY_EC, &raw_key, NULL));
 	test_assert_strcmp(str_c(hdr), jwt_header);
 	test_assert_strcmp(str_c(body), jwt_body);
-	buffer_append(to_verify, hdr->data, hdr->used);
+	buffer_append(to_verify, parts[0], strlen(parts[0]));
 	buffer_append_c(to_verify, '.');
-	buffer_append(to_verify, body->data, body->used);
+	buffer_append(to_verify, parts[1], strlen(parts[1]));
 
-	test_assert(dcrypt_verify(pubkey, "sha256", to_verify->data, to_verify->used,
+	test_assert(dcrypt_verify(pubkey, "sha256", DCRYPT_SIGNATURE_FORMAT_X962,
+				  to_verify->data, to_verify->used,
 				  sig->data, sig->used, &valid, DCRYPT_PADDING_DEFAULT,
 				  NULL) && valid);
 	buffer_t *key_id_1 = t_buffer_create(32);

@@ -257,7 +257,6 @@ int webpush_payload_sign(const buffer_t *payload, struct dcrypt_private_key *key
 			 const char **error_r)
 {
 	buffer_t *sig = t_buffer_create(256);
-	buffer_t *to_sign = t_buffer_create(256);
 	string_t *hdr = t_str_new(64);
 	ARRAY_TYPE(dcrypt_raw_key) raw_key;
 	enum dcrypt_key_type kt;
@@ -275,24 +274,21 @@ int webpush_payload_sign(const buffer_t *payload, struct dcrypt_private_key *key
 
 	str_append(hdr, JWT_SIGN_HEADER);
 
-	/* sign data */
-	buffer_append(to_sign, hdr->data, hdr->used);
-	buffer_append_c(to_sign, '.');
-	buffer_append(to_sign, payload->data, payload->used);
-
-	if (!dcrypt_sign(key, JWT_HASH, to_sign->data, to_sign->used,
-			 sig, DCRYPT_PADDING_DEFAULT, error_r)) {
-		dcrypt_key_unref_public(&pubkey);
-		return -1;
-	}
-	dcrypt_key_unref_public(&pubkey);
-
-	/* store everything */
 	base64url_encode(BASE64_ENCODE_FLAG_NO_PADDING, 0,
 			 hdr->data, hdr->used, b64_token_r);
 	str_append_c(b64_token_r, '.');
 	base64url_encode(BASE64_ENCODE_FLAG_NO_PADDING, 0,
 			 payload->data, payload->used, b64_token_r);
+
+	if (!dcrypt_sign(key, JWT_HASH, DCRYPT_SIGNATURE_FORMAT_X962,
+			 b64_token_r->data, b64_token_r->used,
+			 sig, DCRYPT_PADDING_DEFAULT, error_r)) {
+		buffer_set_used_size(b64_token_r, 0);
+		dcrypt_key_unref_public(&pubkey);
+		return -1;
+	}
+	dcrypt_key_unref_public(&pubkey);
+
 	str_append_c(b64_token_r, '.');
 	base64url_encode(BASE64_ENCODE_FLAG_NO_PADDING, 0,
 			 sig->data, sig->used, b64_token_r);
