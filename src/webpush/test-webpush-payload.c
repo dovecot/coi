@@ -186,6 +186,8 @@ static void test_key_nonce_aes128gcm(void)
 	test_assert_strcmp(str_c(decrypted), "When I grow up, I want to be a "
 					     "watermelon");
 
+	dcrypt_key_unref_private(&privkey);
+
 	test_end();
 }
 
