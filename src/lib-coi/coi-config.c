@@ -119,7 +119,7 @@ int coi_config_set_enabled(struct mail_user *user, bool set)
 	struct mailbox *box;
 	struct mailbox_transaction_context *t;
 	struct mail_attribute_value value = {
-		.value = set ? "yes" : "no",
+		.value = set ? "yes" : NULL,
 	};
 	int ret = 0;
 
@@ -198,9 +198,9 @@ coi_attribute_config_enabled_set(struct mailbox_transaction_context *t,
 	} else if (strcmp(str, "yes") == 0) {
 		if (coi_create_missing_mailboxes(t->box->storage->user) < 0)
 			return -1;
-	} else if (strcmp(str, "no") != 0) {
+	} else {
 		mail_storage_set_error(t->box->storage, MAIL_ERROR_PARAMS,
-				       "Invalid enabled value. Must be yes or no.");
+			"Invalid enabled value. Must be yes or NIL.");
 		return -1;
 	}
 	return 0;
