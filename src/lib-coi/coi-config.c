@@ -133,6 +133,7 @@ int coi_config_set_enabled(struct mail_user *user, bool set)
 	}
 	t = mailbox_transaction_begin(box, 0, "coi metadata change");
 	if (mailbox_attribute_set(t, MAIL_ATTRIBUTE_TYPE_PRIVATE,
+				  MAILBOX_ATTRIBUTE_PREFIX_DOVECOT_PVT_SERVER
 				  MAILBOX_ATTRIBUTE_COI_CONFIG_ENABLED, &value) < 0) {
 		i_error("coi: Can't set enabled metadata: %s",
 			mailbox_get_last_internal_error(t->box, NULL));
