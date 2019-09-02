@@ -77,6 +77,11 @@ imap_coi_mailbox_create(struct mailbox *box,
 {
 	union mailbox_module_context *icbox = IMAP_COI_STORAGE_CONTEXT(box);
 
+	if (icbox->super.create_box(box, update, directory) < 0)
+		return -1;
+
+	/* change "enabled" only after creating mailbox to avoid infinite
+	   recursion loop. */
 	if (!directory && coi_mailbox_is_chats(box)) {
 		/* Creating COI/Chats -> enable COI */
 		if (coi_config_set_enabled(box->storage->user, TRUE) < 0) {
@@ -84,8 +89,7 @@ imap_coi_mailbox_create(struct mailbox *box,
 			return -1;
 		}
 	}
-
-	return icbox->super.create_box(box, update, directory);
+	return 0;
 }
 
 static int imap_coi_mailbox_delete(struct mailbox *box)
@@ -105,6 +109,7 @@ static int imap_coi_mailbox_delete(struct mailbox *box)
 static int imap_coi_mailbox_rename(struct mailbox *src, struct mailbox *dest)
 {
 	union mailbox_module_context *src_icbox = IMAP_COI_STORAGE_CONTEXT(src);
+	bool enable_coi = FALSE;
 
 	if (coi_mailbox_is_chats(src)) {
 		if (!coi_mailbox_has_parent_trash(dest)) {
@@ -119,13 +124,20 @@ static int imap_coi_mailbox_rename(struct mailbox *src, struct mailbox *dest)
 		}
 	} else if (coi_mailbox_is_chats(dest)) {
 		/* Renaming something to COI/Chats -> enable COI */
+		enable_coi = TRUE;
+	}
+
+	if (src_icbox->super.rename_box(src, dest) < 0)
+		return -1;
+	/* change "enabled" only after renaming to avoid it autocreating
+	   mailboxes */
+	if (enable_coi) {
 		if (coi_config_set_enabled(src->storage->user, TRUE) < 0) {
 			mail_storage_set_internal_error(src->storage);
 			return -1;
 		}
 	}
-
-	return src_icbox->super.rename_box(src, dest);
+	return 0;
 }
 
 static struct mailbox_transaction_context *
