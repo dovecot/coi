@@ -31,8 +31,6 @@ struct lmtp_coi_recipient;
 struct lmtp_coi_backend;
 struct lmtp_coi_client;
 
-// FIXME: Debugging messages in this plugin need to use events
-
 struct lmtp_coi_mail {
 	union mail_module_context module_ctx;
 	bool add_has_chat_flag;
@@ -99,8 +97,6 @@ lmtp_coi_client_trans_free(struct client *client,
 {
 	struct lmtp_coi_client *lcclient = LMTP_COI_CONTEXT(client);
 
-	i_debug("coi: Transaction free");
-
 	i_free(lcclient->trans_state.from_normalized);
 	i_zero(&lcclient->trans_state);
 
@@ -113,8 +109,6 @@ lmtp_coi_client_cmd_mail(struct client *client,
 			 struct smtp_server_cmd_mail *data)
 {
 	struct lmtp_coi_client *lcclient = LMTP_COI_CONTEXT(client);
-
-	i_debug("coi: MAIL command");
 
 	i_free(lcclient->trans_state.from_normalized);
 	lcclient->trans_state.from_normalized =
@@ -133,8 +127,6 @@ lmtp_coi_cmd_rcpt_chat(struct lmtp_coi_client *lcclient,
 	struct smtp_server_recipient *rcpt = lrcpt->rcpt;
 	struct smtp_server_cmd_ctx *cmd = rcpt->cmd;
 	struct lmtp_coi_recipient *lcrcpt;
-
-	i_debug("coi: RCPT command: This is a chat recipient");
 
 	lcrcpt = p_new(rcpt->pool, struct lmtp_coi_recipient, 1);
 	MODULE_CONTEXT_SET(lrcpt, lmtp_coi_recipient_module, lcrcpt);
@@ -225,7 +217,6 @@ lmtp_coi_client_cmd_rcpt(struct client *client,
 					      temp_token, my_parsed_token);
 	}
 
-	i_debug("coi: RCPT command: This ia a normal recipient");
 	return lcclient->super.cmd_rcpt(client, cmd, lrcpt);
 }
 
@@ -578,8 +569,6 @@ static void lmtp_coi_client_create(struct client *client)
 	struct lmtp_coi_client *lcclient;
 	struct smtp_capability_extra extra_cap;
 
-	i_debug("coi: Client create");
-
 	lcclient = p_new(client->pool, struct lmtp_coi_client, 1);
 	MODULE_CONTEXT_SET(client, lmtp_coi_client_module, lcclient);
 	lcclient->client = client;
@@ -659,8 +648,6 @@ static struct mail_storage_hooks lmtp_coi_mail_storage_hooks = {
 
 void lmtp_coi_plugin_init(struct module *module)
 {
-	i_debug("coi: Plugin init");
-
 	lmtp_coi_module = module;
 	next_hook_client_created =
 		lmtp_client_created_hook_set(
@@ -671,8 +658,6 @@ void lmtp_coi_plugin_init(struct module *module)
 
 void lmtp_coi_plugin_deinit(void)
 {
-	i_debug("coi: Plugin deinit");
-
 	lmtp_client_created_hook_set(next_hook_client_created);
 	mail_storage_hooks_remove(&lmtp_coi_mail_storage_hooks);
 	coi_storage_plugin_deinit();
