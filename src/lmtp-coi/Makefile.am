@@ -13,6 +13,7 @@ lib11_lmtp_coi_plugin_la_LIBADD = \
 	$(top_builddir)/src/lib-coi/libdovecot-coi.la
 
 lib11_lmtp_coi_plugin_la_SOURCES = \
+	lmtp-coi-message-filter.c \
 	lmtp-coi-plugin.c
 
 noinst_HEADERS = \
