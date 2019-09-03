@@ -5,7 +5,7 @@
 #include "webpush-plugin.h"
 
 const char *webpush_plugin_version = DOVECOT_ABI_VERSION;
-const char *push_notification_plugin_dependencies[] = { "push_notification", NULL };
+const char *webpush_plugin_dependencies[] = { "push_notification", NULL };
 
 void webpush_plugin_init(struct module *module ATTR_UNUSED)
 {
