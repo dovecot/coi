@@ -12,6 +12,8 @@
 #include "coi-contact-list.h"
 #include "lmtp-coi-plugin.h"
 
+#ifdef BUILD_UNFINISHED
+
 #define LMTP_COI_CONTEXT(obj) \
 	MODULE_CONTEXT(obj, lmtp_coi_client_module)
 #define LMTP_COI_RCPT_CONTEXT(obj) \
@@ -511,20 +513,25 @@ static void lmtp_coi_client_created(struct client **_client)
 	if (next_hook_client_created != NULL)
 		next_hook_client_created(_client);
 }
+#endif
 
 void lmtp_coi_plugin_init(struct module *module)
 {
+#ifdef BUILD_UNFINISHED
 	lmtp_coi_module = module;
 	next_hook_client_created =
 		lmtp_client_created_hook_set(
 			lmtp_coi_client_created);
+#endif
 	lmtp_coi_message_filter_init(module);
 	coi_storage_plugin_init(module);
 }
 
 void lmtp_coi_plugin_deinit(void)
 {
+#ifdef BUILD_UNFINISHED
 	lmtp_client_created_hook_set(next_hook_client_created);
+#endif
 	lmtp_coi_message_filter_deinit();
 	coi_storage_plugin_deinit();
 }

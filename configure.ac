@@ -14,6 +14,14 @@ AC_DEFINE_UNQUOTED(COI_NAME, "$PACKAGE_NAME",
 AC_DEFINE_UNQUOTED(COIE_VERSION, "$PACKAGE_VERSION",
         [Define to the version of Dovecot Chat over IMAP.])
 
+AC_ARG_ENABLE(unfinished,
+AS_HELP_STRING([--enable-unfinished], [Enable unfinished code]),
+	if test x$enableval = xyes; then
+		CFLAGS="$CFLAGS -DBUILD_UNFINISHED=1"
+		want_unfinished=yes
+	fi)
+AM_CONDITIONAL(BUILD_UNFINISHED, test "$want_unfinished" = "yes")
+
 AM_INIT_AUTOMAKE([no-define foreign tar-ustar])
 AM_MAINTAINER_MODE
 AC_PROG_CC

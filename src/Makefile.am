@@ -1,7 +1,12 @@
+if BUILD_UNFINISHED
+unfinished = \
+	doveadm-coi \
+	submission-coi
+endif
+
 SUBDIRS = \
 	lib-coi \
-	doveadm-coi \
 	imap-coi \
 	lmtp-coi \
-	submission-coi \
+	$(unfinished) \
 	webpush
