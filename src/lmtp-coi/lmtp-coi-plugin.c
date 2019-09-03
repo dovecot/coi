@@ -221,15 +221,13 @@ lmtp_coi_client_cmd_rcpt(struct client *client,
 }
 
 static int
-lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
-			   struct smtp_server_transaction *trans,
-			   struct lmtp_local_deliver_context *lldctx,
-			   struct coi_context *coi_ctx,
-			   const char **client_error_r)
+lmtp_message_filter_save_chat(struct coi_context *coi_ctx,
+			      struct mail *src_mail,
+			      const struct smtp_address *mail_from,
+			      const char **client_error_r)
 {
-	struct smtp_server_recipient *rcpt = lrcpt->rcpt;
 	struct mail_private *pmail =
-		container_of(lldctx->src_mail, struct mail_private, mail);
+		container_of(src_mail, struct mail_private, mail);
 	struct lmtp_coi_mail *lcmail = LMTP_COI_MAIL_CONTEXT(pmail);
 	enum mailbox_transaction_flags trans_flags;
 	struct mailbox_transaction_context *mtrans;
@@ -281,12 +279,12 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 	trans_flags = MAILBOX_TRANSACTION_FLAG_EXTERNAL;
 	mtrans = mailbox_transaction_begin(box, trans_flags, __func__);
 	save_ctx = mailbox_save_alloc(mtrans);
-	if (trans->mail_from != NULL) {
+	if (mail_from != NULL) {
 		mailbox_save_set_from_envelope(save_ctx,
-			smtp_address_encode(trans->mail_from));
+			smtp_address_encode(mail_from));
 	}
 
-	if (mailbox_save_using_mail(&save_ctx, lldctx->src_mail) < 0)
+	if (mailbox_save_using_mail(&save_ctx, src_mail) < 0)
 		ret = -1;
 
 	if (ret < 0)
@@ -302,13 +300,29 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 	} else {
 		i_info("COI: Saved message to chats mailbox `%s'",
 		       mailbox_get_vname(box));
-		smtp_server_recipient_reply(rcpt, 250, "2.0.0",
-					    "%s Saved chat message",
-					    lldctx->session_id);
 	}
 
 	mailbox_free(&box);
 	return ret < 0 ? -1 : 1;
+}
+
+static int
+lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
+			   struct smtp_server_transaction *trans,
+			   struct lmtp_local_deliver_context *lldctx,
+			   struct coi_context *coi_ctx,
+			   const char **client_error_r)
+{
+	int ret;
+
+	ret = lmtp_message_filter_save_chat(coi_ctx, lldctx->src_mail,
+					    trans->mail_from, client_error_r);
+	if (ret > 0) {
+		smtp_server_recipient_reply(lrcpt->rcpt, 250, "2.0.0",
+					    "%s Saved chat message",
+					    lldctx->session_id);
+	}
+	return ret;
 }
 
 static bool
