@@ -24,6 +24,7 @@ struct webpush_send_context {
 	struct event *event;
 	char *device_key;
 	struct http_client_request *request;
+	unsigned int response_status;
 };
 
 struct webpush_notify_global *webpush_global = NULL;
@@ -78,12 +79,14 @@ static int webpush_response_try_retry(struct webpush_send_context *ctx,
 	return http_client_request_try_retry(ctx->request) ? 1 : 0;
 }
 
-static void
+static bool
 webpush_notify_http_callback(const struct http_response *response,
 			     struct webpush_send_context *ctx)
 {
 	const char *error;
 	int ret;
+
+	ctx->response_status = response->status;
 
 	/* Use only e_debug() for all logging, because these are untrusted
 	   endpoints. Normally admins shouldn't need to see anything about
@@ -92,13 +95,12 @@ webpush_notify_http_callback(const struct http_response *response,
 	case 201:
 		e_debug(ctx->event, "Notification sent successfully: %s",
 			http_response_get_message(response));
-		break;
+		return TRUE;
 	case 404:
 	case 410:
 		e_debug(ctx->event, "Subscription is no longer valid: %s",
 			http_response_get_message(response));
-		webpush_notify_delete_subscription(ctx->user, ctx->device_key);
-		break;
+		return FALSE;
 	case 429: /* Too many requests */
 	default:
 		error = t_strdup_printf("Error when sending notification: POST %s failed: %s",
@@ -110,25 +112,47 @@ webpush_notify_http_callback(const struct http_response *response,
 			e_debug(ctx->event, "%s", error);
 		if (ret < 0) {
 			/* Not a temporary error - disable subscription */
-			webpush_notify_delete_subscription(ctx->user, ctx->device_key);
+			return FALSE;
 		}
-		break;
+		return TRUE;
 	}
+	i_unreached();
+}
+
+static void webpush_send_context_free(struct webpush_send_context *ctx)
+{
 	event_unref(&ctx->event);
 	i_free(ctx->device_key);
 	i_free(ctx);
 }
 
+static void
+webpush_notify_async_http_callback(const struct http_response *response,
+				   struct webpush_send_context *ctx)
+{
+	if (!webpush_notify_http_callback(response, ctx))
+		webpush_notify_delete_subscription(ctx->user, ctx->device_key);
+	webpush_send_context_free(ctx);
+}
+
+static void
+webpush_notify_sync_http_callback(const struct http_response *response,
+				  struct webpush_send_context *ctx)
+{
+	(void)webpush_notify_http_callback(response, ctx);
+}
+
 bool webpush_send(struct mail_user *user,
 		  const struct webpush_subscription *subscription,
 		  struct dcrypt_private_key *vapid_key,
-		  string_t *msg, const char **error_r)
+		  string_t *msg, bool async, const char **error_r)
 {
 	struct webpush_mail_user *wuser = WEBPUSH_USER_CONTEXT(user);
 	struct webpush_notify_config *dconfig;
 	struct istream *payload;
 	struct webpush_send_context *ctx;
 	const char *error;
+	bool success;
 
 	i_assert(subscription->device_key != NULL);
 
@@ -208,9 +232,15 @@ bool webpush_send(struct mail_user *user,
 	event_set_append_log_prefix(ctx->event,
 		t_strdup_printf("%s: ", subscription->device_key));
 
-	ctx->request = http_client_request_url(webpush_global->http_client, "POST",
-		subscription->resource_endpoint_http_url,
-		webpush_notify_http_callback, ctx);
+	if (async) {
+		ctx->request = http_client_request_url(webpush_global->http_client, "POST",
+			subscription->resource_endpoint_http_url,
+			webpush_notify_async_http_callback, ctx);
+	} else {
+		ctx->request = http_client_request_url(webpush_global->http_client, "POST",
+			subscription->resource_endpoint_http_url,
+			webpush_notify_sync_http_callback, ctx);
+	}
 	http_client_request_set_event(ctx->request, dconfig->event);
 	http_client_request_add_header(ctx->request, "TTL", dec2str(WEBPUSH_TTL_SECS));
 	http_client_request_add_header(ctx->request, "Content-Encoding", "aes128gcm");
@@ -226,5 +256,18 @@ bool webpush_send(struct mail_user *user,
 	http_client_request_submit(ctx->request);
 	i_stream_unref(&payload);
 	buffer_free(&encrypted_full);
-	return TRUE;
+
+	if (!async) {
+		http_client_wait(webpush_global->http_client);
+		/* Return success only when the push notification went
+		   successfully through. This also means that if the push
+		   service has temporary problems it will result in a client
+		   visible error. */
+		success = ctx->response_status == 201;
+		*error_r = "Endpoint validation failed";
+		webpush_send_context_free(ctx);
+	} else {
+		success = TRUE;
+	}
+	return success;
 }

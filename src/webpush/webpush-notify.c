@@ -298,7 +298,7 @@ webpush_notify_process_msg(struct push_notification_driver_txn *dtxn,
 		if (!webpush_notify_subscription_want(subscription, messagenew))
 			continue;
 		(void)webpush_send(user, subscription, cache->vapid_key,
-				   msg_text, &error);
+				   msg_text, TRUE, &error);
 	}
 }
 

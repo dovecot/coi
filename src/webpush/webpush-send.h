@@ -16,6 +16,6 @@ extern struct webpush_notify_global *webpush_global;
 bool webpush_send(struct mail_user *user,
 		  const struct webpush_subscription *subscription,
 		  struct dcrypt_private_key *vapid_key,
-		  string_t *msg, const char **error_r);
+		  string_t *msg, bool async, const char **error_r);
 
 #endif
