@@ -12,8 +12,6 @@
 #include "coi-contact-list.h"
 #include "lmtp-coi-plugin.h"
 
-#ifdef BUILD_UNFINISHED
-
 #define LMTP_COI_CONTEXT(obj) \
 	MODULE_CONTEXT(obj, lmtp_coi_client_module)
 #define LMTP_COI_RCPT_CONTEXT(obj) \
@@ -55,11 +53,14 @@ const char *lmtp_coi_plugin_version = DOVECOT_ABI_VERSION;
 static struct module *lmtp_coi_module;
 static MODULE_CONTEXT_DEFINE_INIT(lmtp_coi_client_module,
 				  &lmtp_module_register);
+#ifdef BUILD_UNFINISHED
 static MODULE_CONTEXT_DEFINE_INIT(lmtp_coi_recipient_module,
 				  &lmtp_recipient_module_register);
+#endif
 
 static lmtp_client_created_func_t *next_hook_client_created;
 
+#ifdef BUILD_UNFINISHED
 static void
 lmtp_coi_client_data_reply(struct smtp_server_recipient *rcpt,
 			   struct lmtp_coi_recipient *lcrcpt);
@@ -203,6 +204,7 @@ lmtp_coi_client_cmd_rcpt(struct client *client,
 
 	return lcclient->super.cmd_rcpt(client, cmd, lrcpt);
 }
+#endif
 
 static int
 lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
@@ -223,6 +225,7 @@ lmtp_coi_client_store_chat(struct lmtp_recipient *lrcpt,
 	return ret;
 }
 
+#ifdef BUILD_UNFINISHED
 static bool
 lmtp_generate_perm_token(struct lmtp_coi_recipient *lcrcpt,
 			 struct coi_token **token_r)
@@ -430,6 +433,7 @@ lmtp_coi_client_data_reply(struct smtp_server_recipient *rcpt,
 	token_prefix = t_strdup_printf("<%s> ", lcrcpt->reply_token);
 	smtp_server_reply_prepend_text(reply, token_prefix);
 }
+#endif
 
 static int
 lmtp_coi_client_local_deliver(struct client *client,
@@ -439,18 +443,22 @@ lmtp_coi_client_local_deliver(struct client *client,
 			      struct lmtp_local_deliver_context *lldctx)
 {
 	struct lmtp_coi_client *lcclient = LMTP_COI_CONTEXT(client);
+#ifdef BUILD_UNFINISHED
 	struct lmtp_coi_recipient *lcrcpt = LMTP_COI_RCPT_CONTEXT(lrcpt);
+#endif
 	struct smtp_server_recipient *rcpt = lrcpt->rcpt;
 	struct mail_user *user = lldctx->rcpt_user;
 	struct coi_context *coi_ctx = coi_get_user_context(user);
 	const char *client_error;
 	int ret = 0;
 
+#ifdef BUILD_UNFINISHED
 	if (lcrcpt != NULL) {
 		/* Do final STOKEN verification */
 		if (lmtp_coi_verify_token(lcclient, coi_ctx, lcrcpt) < 0)
 			ret = -1;
 	}
+#endif
 
 	if (ret == 0)
 		ret = coi_mail_is_chat(lldctx->src_mail);
@@ -479,29 +487,35 @@ lmtp_coi_client_local_deliver(struct client *client,
 static void lmtp_coi_client_create(struct client *client)
 {
 	struct lmtp_coi_client *lcclient;
+#ifdef BUILD_UNFINISHED
 	struct smtp_capability_extra extra_cap;
+#endif
 
 	lcclient = p_new(client->pool, struct lmtp_coi_client, 1);
 	MODULE_CONTEXT_SET(client, lmtp_coi_client_module, lcclient);
 	lcclient->client = client;
 
 	lcclient->super = client->v;
+#ifdef BUILD_UNFINISHED
 	client->v.destroy = lmtp_coi_client_destroy;
 	client->v.trans_free = lmtp_coi_client_trans_free;
 	client->v.cmd_mail = lmtp_coi_client_cmd_mail;
 	client->v.cmd_rcpt = lmtp_coi_client_cmd_rcpt;
+#endif
 	client->v.local_deliver = lmtp_coi_client_local_deliver;
 
 	coi_secret_settings_init(&lcclient->secret_set, client->pool,
 		mail_user_set_plugin_getenv(client->user_set, COI_SETTING_TOKEN_TEMP_SECRETS),
 		mail_user_set_plugin_getenv(client->user_set, COI_SETTING_TOKEN_PERM_SECRETS));
 
+#ifdef BUILD_UNFINISHED
 	i_zero(&extra_cap);
 	extra_cap.name = "STOKEN";
 	smtp_server_connection_add_extra_capability(client->conn, &extra_cap);
 
 	smtp_server_connection_register_rcpt_param(client->conn, "STOKEN");
 	smtp_server_connection_register_rcpt_param(client->conn, "MYSTOKEN");
+#endif
 }
 
 static void lmtp_coi_client_created(struct client **_client)
@@ -513,25 +527,20 @@ static void lmtp_coi_client_created(struct client **_client)
 	if (next_hook_client_created != NULL)
 		next_hook_client_created(_client);
 }
-#endif
 
 void lmtp_coi_plugin_init(struct module *module)
 {
-#ifdef BUILD_UNFINISHED
 	lmtp_coi_module = module;
 	next_hook_client_created =
 		lmtp_client_created_hook_set(
 			lmtp_coi_client_created);
-#endif
 	lmtp_coi_message_filter_init(module);
 	coi_storage_plugin_init(module);
 }
 
 void lmtp_coi_plugin_deinit(void)
 {
-#ifdef BUILD_UNFINISHED
 	lmtp_client_created_hook_set(next_hook_client_created);
-#endif
 	lmtp_coi_message_filter_deinit();
 	coi_storage_plugin_deinit();
 }
