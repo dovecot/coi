@@ -30,7 +30,7 @@ webpush_subscription_msgtype_parse(const char *value,
 	enum webpush_subscription_msgtype msgtype;
 
 	for (msgtype = WEBPUSH_SUBSCRIPTION_MSGTYPE_ANY;
-	     msgtype < N_ELEMENTS(webpush_subscription_msgtype_strings);
+	     msgtype <= WEBPUSH_SUBSCRIPTION_MSGTYPE_EMAIL;
 	     msgtype++) {
 		if (strcmp(webpush_subscription_msgtype_strings[msgtype], value) == 0) {
 			*msgtype_r = msgtype;
