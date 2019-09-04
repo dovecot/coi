@@ -452,7 +452,7 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 
 	p = strchr(device_key, '/');
 	if (p != NULL) {
-		if (strcmp(p, "/validation") == 0) {
+		if (strcmp(p, "/validate") == 0) {
 			device_key = t_strdup_until(device_key, p);
 			return webpush_subscription_validation_set(t, device_key, value);
 		}
