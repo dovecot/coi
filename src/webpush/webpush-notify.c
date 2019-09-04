@@ -186,6 +186,17 @@ webpush_notify_begin_txn(struct push_notification_driver_txn *dtxn)
 	return TRUE;
 }
 
+static void
+webpush_notify_end_txn(struct push_notification_driver_txn *dtxn ATTR_UNUSED,
+		       bool success ATTR_UNUSED)
+{
+	/* Wait for the push notification to be sent. If this is left until
+	   user is deinitialized, invalid subscriptions can't be removed
+	   anymore. */
+	if (webpush_global->http_client != NULL)
+		http_client_wait(webpush_global->http_client);
+}
+
 static bool
 webpush_notify_subscription_want(const struct webpush_subscription *subscription,
 				 const struct push_notification_event_messagenew_data *messagenew)
@@ -396,6 +407,7 @@ static const struct push_notification_driver push_notification_driver_webpush = 
 	.v = {
 		.init = webpush_notify_init,
 		.begin_txn = webpush_notify_begin_txn,
+		.end_txn = webpush_notify_end_txn,
 		.process_msg = webpush_notify_process_msg,
 		.deinit = webpush_notify_deinit,
 		.cleanup = webpush_notify_cleanup
