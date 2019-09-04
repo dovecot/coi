@@ -4,6 +4,7 @@
 #include "ioloop.h"
 #include "istream.h"
 #include "str.h"
+#include "str-sanitize.h"
 #include "http-client.h"
 #include "http-url.h"
 #include "iostream-ssl.h"
@@ -24,6 +25,8 @@ struct webpush_send_context {
 	struct event *event;
 	char *device_key;
 	struct http_client_request *request;
+
+	char *response_error;
 	unsigned int response_status;
 };
 
@@ -83,7 +86,6 @@ static bool
 webpush_notify_http_callback(const struct http_response *response,
 			     struct webpush_send_context *ctx)
 {
-	const char *error;
 	int ret;
 
 	ctx->response_status = response->status;
@@ -98,18 +100,21 @@ webpush_notify_http_callback(const struct http_response *response,
 		return TRUE;
 	case 404:
 	case 410:
-		e_debug(ctx->event, "Subscription is no longer valid: %s",
+		ctx->response_error = i_strdup_printf(
+			"Subscription is no longer valid: %s",
 			http_response_get_message(response));
+		e_debug(ctx->event, "%s", ctx->response_error);
 		return FALSE;
 	case 429: /* Too many requests */
 	default:
-		error = t_strdup_printf("Error when sending notification: POST %s failed: %s",
-				http_client_request_get_target(ctx->request),
-				http_response_get_message(response));
+		ctx->response_error = i_strdup_printf(
+			"Error when sending notification: POST %s failed: %s",
+			http_client_request_get_target(ctx->request),
+			http_response_get_message(response));
 		if ((ret = webpush_response_try_retry(ctx, response)) > 0)
-			e_debug(ctx->event, "%s - retrying", error);
+			e_debug(ctx->event, "%s - retrying", ctx->response_error);
 		else
-			e_debug(ctx->event, "%s", error);
+			e_debug(ctx->event, "%s", ctx->response_error);
 		if (ret < 0) {
 			/* Not a temporary error - disable subscription */
 			return FALSE;
@@ -122,6 +127,7 @@ webpush_notify_http_callback(const struct http_response *response,
 static void webpush_send_context_free(struct webpush_send_context *ctx)
 {
 	event_unref(&ctx->event);
+	i_free(ctx->response_error);
 	i_free(ctx->device_key);
 	i_free(ctx);
 }
@@ -264,7 +270,12 @@ bool webpush_send(struct mail_user *user,
 		   service has temporary problems it will result in a client
 		   visible error. */
 		success = ctx->response_status == 201;
-		*error_r = "Endpoint validation failed";
+		if (!success) {
+			/* Give client access to the exact HTTP response.
+			   It can help debugging problems, and these shouldn't
+			   have any sensitive information. */
+			*error_r = str_sanitize(t_strdup(ctx->response_error), 256);
+		}
 		webpush_send_context_free(ctx);
 	} else {
 		success = TRUE;
