@@ -38,8 +38,6 @@ struct webpush_event_messagenew_save_data {
 	const char *body;
 };
 
-extern struct push_notification_event push_notification_event_messagenew;
-
 static struct push_notification_event webpush_event_messagenew;
 static void (*webpush_event_messagenew_save_prev)
 	(struct push_notification_txn *ptxn,
@@ -67,7 +65,7 @@ webpush_notify_init(struct push_notification_driver_config *config,
 
 	dconfig = p_new(pool, struct webpush_notify_config, 1);
 	dconfig->event = event_create(user->event);
-	event_add_category(dconfig->event, &event_category_push_notification);
+	event_add_category(dconfig->event, push_notification_get_event_category());
 	event_set_append_log_prefix(dconfig->event, "webpush: ");
 
 	tmp = hash_table_lookup(config->config, (const char *)"cache_lifetime");
@@ -416,12 +414,12 @@ static const struct push_notification_driver push_notification_driver_webpush = 
 
 void webpush_notify_register(void)
 {
-	webpush_event_messagenew = push_notification_event_messagenew;
+	webpush_event_messagenew = *push_notification_get_event_messagenew();
 	webpush_event_messagenew_save_prev =
 		webpush_event_messagenew.msg_triggers.save;
 	webpush_event_messagenew.msg_triggers.save =
 		webpush_event_messagenew_save;
-	push_notification_event_unregister(&push_notification_event_messagenew);
+	push_notification_event_unregister(push_notification_get_event_messagenew());
 	push_notification_event_register(&webpush_event_messagenew);
 
 	push_notification_driver_register(&push_notification_driver_webpush);
@@ -432,5 +430,5 @@ void webpush_notify_unregister(void)
 	push_notification_driver_unregister(&push_notification_driver_webpush);
 
 	push_notification_event_unregister(&webpush_event_messagenew);
-	push_notification_event_register(&push_notification_event_messagenew);
+	push_notification_event_register(push_notification_get_event_messagenew());
 }
