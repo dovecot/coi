@@ -213,7 +213,7 @@ bool webpush_send(struct mail_user *user,
 	string_t *b64_token = t_str_new(128);
 	string_t *b64_key = t_str_new(128);
 	string_t *jwt_body = t_str_new(128);
-	str_append(jwt_body, "{ \"aud\":\"");
+	str_append(jwt_body, "{\"aud\":\"");
 	if (!subscription->resource_endpoint_http_url->have_ssl)
 		uri_append_scheme(jwt_body, "http");
 	else
