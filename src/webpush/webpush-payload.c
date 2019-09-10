@@ -33,10 +33,7 @@ buffer_t *webpush_payload_pad_data(enum webpush_payload_encryption_type enc_type
 		result = t_buffer_create(buflen);
 		be = cpu16_to_be(pad_len);
 		buffer_append(result, &be, sizeof(be));
-		for (uint16_t i = 0; i < pad_len; i++) {
-			unsigned char c = ((pad_len - i) % 256);
-			buffer_append_c(result, c);
-		}
+		buffer_append_zero(result, pad_len);
 		buffer_append(result, plaintext->data, plaintext->used);
 		i_assert(result->used == buflen);
 		return result;
@@ -47,10 +44,7 @@ buffer_t *webpush_payload_pad_data(enum webpush_payload_encryption_type enc_type
 		buffer_append(result, plaintext->data, plaintext->used);
 		buffer_append_c(result, '\x02');
 		/* add padding */
-		for (uint16_t i = 0; i < pad_len; i++) {
-			unsigned char c = ((pad_len - i) % 256);
-			buffer_append_c(result, c);
-		}
+		buffer_append_zero(result, pad_len);
 		i_assert(result->used == buflen);
 		return result;
 	}
