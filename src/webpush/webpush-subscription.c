@@ -522,7 +522,7 @@ webpush_subscription_attribute_set(struct mailbox_transaction_context *t,
 
 	/* send validation push-notification message */
 	string_t *msg = t_str_new(128);
-	str_append(msg, "{\"validation:\"");
+	str_append(msg, "{\"validation\":\"");
 	json_append_escaped(msg, subscription.validation);
 	str_append(msg, "\"}");
 	if (!webpush_send(t->box->storage->user, &subscription,
