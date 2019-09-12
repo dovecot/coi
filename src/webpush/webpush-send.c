@@ -84,11 +84,13 @@ static int webpush_response_try_retry(struct webpush_send_context *ctx,
 
 static bool
 webpush_notify_http_callback(const struct http_response *response,
-			     struct webpush_send_context *ctx)
+			     struct webpush_send_context *ctx,
+			     bool *retrying_r)
 {
 	int ret;
 
 	ctx->response_status = response->status;
+	*retrying_r = FALSE;
 
 	/* Use only e_debug() for all logging, because these are untrusted
 	   endpoints. Normally admins shouldn't need to see anything about
@@ -111,9 +113,10 @@ webpush_notify_http_callback(const struct http_response *response,
 			"Error when sending notification: POST %s failed: %s",
 			http_client_request_get_target(ctx->request),
 			http_response_get_message(response));
-		if ((ret = webpush_response_try_retry(ctx, response)) > 0)
+		if ((ret = webpush_response_try_retry(ctx, response)) > 0) {
+			*retrying_r = TRUE;
 			e_debug(ctx->event, "%s - retrying", ctx->response_error);
-		else
+		} else
 			e_debug(ctx->event, "%s", ctx->response_error);
 		if (ret < 0) {
 			/* Not a temporary error - disable subscription */
@@ -136,16 +139,21 @@ static void
 webpush_notify_async_http_callback(const struct http_response *response,
 				   struct webpush_send_context *ctx)
 {
-	if (!webpush_notify_http_callback(response, ctx))
+	bool retrying;
+
+	if (!webpush_notify_http_callback(response, ctx, &retrying))
 		webpush_notify_delete_subscription(ctx->user, ctx->device_key);
-	webpush_send_context_free(ctx);
+	if (!retrying)
+		webpush_send_context_free(ctx);
 }
 
 static void
 webpush_notify_sync_http_callback(const struct http_response *response,
 				  struct webpush_send_context *ctx)
 {
-	(void)webpush_notify_http_callback(response, ctx);
+	bool retrying;
+
+	(void)webpush_notify_http_callback(response, ctx, &retrying);
 }
 
 bool webpush_send(struct mail_user *user,
