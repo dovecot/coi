@@ -334,16 +334,17 @@ webpush_messagenew_save_body(struct push_notification_txn *ptxn,
 			     struct mail *mail,
 			     struct webpush_event_messagenew_save_data *webpush_data)
 {
-	struct message_size body_size;
+	struct message_size body_size, hdr_size;
 	struct istream *input;
 	const unsigned char *data;
 	size_t size;
 
-	if (mail_get_stream_because(mail, NULL, &body_size,
+	if (mail_get_stream_because(mail, &hdr_size, &body_size,
 				    "webpush notification", &input) < 0)
 		return -1;
 	if (body_size.physical_size > WEBPUSH_BODY_STRDUP_MAX_LEN)
 		return 0;
+	i_stream_skip(input, hdr_size.physical_size);
 
 	string_t *str = t_str_new(body_size.physical_size);
 	while (i_stream_read_more(input, &data, &size) > 0) {
