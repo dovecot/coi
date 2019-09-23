@@ -206,8 +206,7 @@ bool webpush_send(struct mail_user *user,
 		salt->used + 4 + 1 + ephemeral_key->used + encrypted_msg->used;
 	buffer_t *encrypted_full =
 		buffer_create_dynamic(default_pool, encrypted_full_max_size);
-	/* "rs" must be greater than the full payload */
-	uint32_t record_len = cpu32_to_be(WEBPUSH_MSG_MAX_ENCRYPTED_SIZE+1);
+	uint32_t record_len = cpu32_to_be(WEBPUSH_MSG_MAX_ENCRYPTED_SIZE);
 	buffer_append(encrypted_full, salt->data, salt->used);
 	buffer_append(encrypted_full, &record_len, sizeof(record_len));
 	buffer_append_c(encrypted_full, ephemeral_key->used);
