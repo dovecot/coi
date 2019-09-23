@@ -184,9 +184,9 @@ bool webpush_send(struct mail_user *user,
 	if (padding > WEBPUSH_MSG_MAX_PLAINTEXT_LEN - str_len(msg))
 		padding = WEBPUSH_MSG_MAX_PLAINTEXT_LEN - str_len(msg);
 
-	size_t encryped_msg_max_size = str_len(msg) + padding + 16 + 8;
+	size_t encrypted_msg_max_size = str_len(msg) + padding + 16 + 8;
 	buffer_t *encrypted_msg =
-		buffer_create_dynamic(default_pool, encryped_msg_max_size);
+		buffer_create_dynamic(default_pool, encrypted_msg_max_size);
 	if (webpush_payload_encrypt(subscription,
 				    PAYLOAD_ENCRYPTION_TYPE_AES128GCM,
 				    msg, padding, ephemeral_key, salt,
@@ -200,7 +200,7 @@ bool webpush_send(struct mail_user *user,
 	/* make sure the buffer sizes were chosen well */
 	i_assert(buffer_get_writable_size(ephemeral_key) == 65);
 	i_assert(buffer_get_writable_size(salt) == 16);
-	i_assert(buffer_get_writable_size(encrypted_msg) == encryped_msg_max_size);
+	i_assert(buffer_get_writable_size(encrypted_msg) == encrypted_msg_max_size);
 
 	size_t encrypted_full_max_size =
 		salt->used + 4 + 1 + ephemeral_key->used + encrypted_msg->used;
