@@ -180,9 +180,14 @@ bool webpush_send(struct mail_user *user,
 	/* encrypt the msg */
 	buffer_t *ephemeral_key = t_buffer_create(65);
 	buffer_t *salt = t_buffer_create(16);
-	uint16_t padding = (1024 - (str_len(msg) % 1024)) % 1024;
-	if (padding > WEBPUSH_MSG_MAX_PLAINTEXT_LEN - str_len(msg))
-		padding = WEBPUSH_MSG_MAX_PLAINTEXT_LEN - str_len(msg);
+	uint16_t padding = 0;
+
+	if (dconfig->padding) {
+		/* pad to nearest kilobyte */
+		padding = (1024 - (str_len(msg) % 1024)) % 1024;
+		if (padding > WEBPUSH_MSG_MAX_PLAINTEXT_LEN - str_len(msg))
+			padding = WEBPUSH_MSG_MAX_PLAINTEXT_LEN - str_len(msg);
+	}
 
 	size_t encrypted_msg_max_size = str_len(msg) + padding + 16 + 8;
 	buffer_t *encrypted_msg =

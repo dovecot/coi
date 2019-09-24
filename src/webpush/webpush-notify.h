@@ -23,6 +23,8 @@ struct webpush_notify_config {
 	char *http_rawlog_dir;
 
 	struct webpush_notify_cache cache;
+
+	bool padding:1;
 };
 
 struct webpush_mail_user {

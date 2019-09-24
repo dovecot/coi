@@ -91,6 +91,18 @@ webpush_notify_init(struct push_notification_driver_config *config,
 	tmp = hash_table_lookup(config->config, (const char *)"rawlog_dir");
 	dconfig->http_rawlog_dir = i_strdup(tmp);
 
+	tmp = hash_table_lookup(config->config, (const char *)"padding");
+	if (tmp == NULL || strcmp(tmp, "no") == 0) {
+		dconfig->padding = FALSE;
+	} else if (strcmp(tmp, "yes") == 0) {
+		dconfig->padding = TRUE;
+	} else {
+		event_unref(&dconfig->event);
+		*error_r = t_strdup_printf("Failed to parse padding '%s': "
+					   "expected yes or no", tmp);
+		return -1;
+	}
+
 	if (webpush_global == NULL) {
 		webpush_global = i_new(struct webpush_notify_global, 1);
 		webpush_global->refcount = 0;
