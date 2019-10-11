@@ -1,7 +1,5 @@
 Dovecot Chat over IMAP (COI)
 
-WARNING: Not part of the open source Dovecot distribution.
-
 Introduction
 ============
 
