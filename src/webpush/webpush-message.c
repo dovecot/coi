@@ -6,8 +6,6 @@
 #include "json-parser.h"
 #include "rfc822-parser.h"
 #include "rfc2231-parser.h"
-#include "message-address.h"
-#include "message-header-decode.h"
 #include "charset-utf8.h"
 #include "webpush-message.h"
 
@@ -38,37 +36,6 @@ webpush_notify_append_limited(string_t *str, const char *key, const char *value)
 		str_append(str, UNICODE_HORIZONTAL_ELLIPSIS_CHAR_UTF8);
 	}
 	str_append(str, "\"");
-}
-
-static void webpush_notify_append_from(string_t *str, const char *hdr_from)
-{
-	struct message_address *addr;
-
-	addr = message_address_parse(pool_datastack_create(),
-		(const unsigned char *)hdr_from, strlen(hdr_from), 1, 0);
-	if (addr->domain[0] != '\0') {
-		webpush_notify_append_limited(str, "from-email",
-			t_strdup_printf("%s@%s", addr->mailbox, addr->domain));
-	} else if (addr->mailbox[0] != '\0')
-		webpush_notify_append_limited(str, "from-email", addr->mailbox);
-
-	if (addr->name != NULL) {
-		string_t *name_utf8 = t_str_new(128);
-
-		message_header_decode_utf8((const unsigned char *)addr->name,
-					   strlen(addr->name), name_utf8, NULL);
-		webpush_notify_append_limited(str, "from-name", str_c(name_utf8));
-	}
-}
-
-static void
-webpush_notify_append_subject(string_t *str, const char *hdr_subject)
-{
-	string_t *subject_utf8 = t_str_new(128);
-
-	message_header_decode_utf8((const unsigned char *)hdr_subject,
-				   strlen(hdr_subject), subject_utf8, NULL);
-	webpush_notify_append_limited(str, "subject", str_c(subject_utf8));
 }
 
 static bool webpush_is_default_content_type(const char *hdr_content_type)
@@ -117,10 +84,12 @@ void webpush_message_write(string_t *str, const struct webpush_message_input *in
 		str_printfa(str, ",\"date\":\"%s\"",
 			    iso8601_date_create(input->date));
 	}
-	if (input->hdr_from != NULL)
-		webpush_notify_append_from(str, input->hdr_from);
+	if (input->hdr_from_address != NULL)
+		webpush_notify_append_limited(str, "from-email", input->hdr_from_address);
+	if (input->hdr_from_display_name != NULL)
+		webpush_notify_append_limited(str, "from-name", input->hdr_from_display_name);
 	if (input->hdr_subject != NULL)
-		webpush_notify_append_subject(str, input->hdr_subject);
+		webpush_notify_append_limited(str, "subject", input->hdr_subject);
 	if (input->hdr_message_id != NULL)
 		webpush_notify_append_limited(str, "msg-id", input->hdr_message_id);
 	if (input->chat_group_id != NULL) {
