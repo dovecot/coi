@@ -40,7 +40,8 @@ static struct {
 		.uid_validity = 1234567890,
 		.uid = 1122334455,
 		.date = 1566042493,
-		.hdr_from = "\"test user\\\"name\" <\"test \\\"local\"@example.com>",
+		.hdr_from_address = "test \"local@example.com",
+		.hdr_from_display_name = "test user\"name",
 		.hdr_subject = "some \"subject\"",
 		.hdr_message_id = "<\"msgid\"@example.com>",
 		.chat_group_id = "group\"id",
@@ -63,67 +64,50 @@ static struct {
 		"\"content\":\"body\\\"text\"}"
 	},
 
-	/* only use the first From address */
-	{ .input = {
-		TEST_COMMON_INPUT,
-		.hdr_from = "user1@1.example.com, user2@2.example.com",
-	  },
-	  .output = TEST_COMMON_OUTPUT_PREFIX
-		"\"from-email\":\"user1@1.example.com\"}"
-	},
-
 	/* EAI UTF-8 in From header */
 	{ .input = {
 		TEST_COMMON_INPUT,
-		.hdr_from = "P\xC3\xA4ivi Smith <p\xC3\xA4ivi@example.com>",
+		.hdr_from_address = "p\xC3\xA4ivi@example.com",
+		.hdr_from_display_name = "P\xC3\xA4ivi Smith",
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
 		"\"from-email\":\"p\xC3\xA4ivi@example.com\","
 		"\"from-name\":\"P\xC3\xA4ivi Smith\"}"
 	},
-	/* Encoded UTF-8 in From display-name */
-	{ .input = {
-		TEST_COMMON_INPUT,
-		.hdr_from = "=?UTF-8?Q?P=C3=A4?=ivi Smith <paivi@example.com>",
-	  },
-	  .output = TEST_COMMON_OUTPUT_PREFIX
-		"\"from-email\":\"paivi@example.com\","
-		"\"from-name\":\"P\xC3\xA4ivi Smith\"}"
-	},
 
-	/* Encoded UTF-8 in subject */
+	/* UTF-8 in subject */
 	{ .input = {
 		TEST_COMMON_INPUT,
-		.hdr_subject = "=?UTF-8?Q?P=C3=A4?=ivi Smith",
+		.hdr_subject = "P\xC3\xA4ivi Smith",
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
 		"\"subject\":\"P\xC3\xA4ivi Smith\"}"
 	},
-	/* Encoded UTF-8 in subject getting truncated */
+	/* UTF-8 in subject getting truncated */
 	{ .input = {
 		TEST_COMMON_INPUT,
-		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"123456 =?UTF-8?Q?P=C3=A4?=ivi",
+		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"123456 P\xC3\xA4ivi",
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
 		"\"subject\":\""TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"123456 P\xC3\xA4"UNICODE_HORIZONTAL_ELLIPSIS_CHAR_UTF8"\"}"
 	},
 	{ .input = {
 		TEST_COMMON_INPUT,
-		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"1234567 =?UTF-8?Q?P=C3=A4?=ivi",
+		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"1234567 P\xC3\xA4ivi",
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
 		"\"subject\":\""TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"1234567 P"UNICODE_HORIZONTAL_ELLIPSIS_CHAR_UTF8"\"}"
 	},
 	{ .input = {
 		TEST_COMMON_INPUT,
-		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"12345678 =?UTF-8?Q?P=C3=A4?=ivi",
+		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"12345678 P\xC3\xA4ivi",
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
 		"\"subject\":\""TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"12345678 P"UNICODE_HORIZONTAL_ELLIPSIS_CHAR_UTF8"\"}"
 	},
 	{ .input = {
 		TEST_COMMON_INPUT,
-		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"123456789 =?UTF-8?Q?P=C3=A4?=ivi",
+		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"123456789 P\xC3\xA4ivi",
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
 		"\"subject\":\""TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"123456789 "UNICODE_HORIZONTAL_ELLIPSIS_CHAR_UTF8"\"}"
@@ -147,7 +131,8 @@ static struct {
 	/* Large From */
 	{ .input = {
 		TEST_COMMON_INPUT,
-		.hdr_from = TEXT100" <"TEXT50 TEXT10 TEXT10 TEXT10"@1234567.example.com>",
+		.hdr_from_address = TEXT50 TEXT10 TEXT10 TEXT10"@1234567.example.com",
+		.hdr_from_display_name = TEXT100,
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
 		"\"from-email\":\""TEXT50 TEXT10 TEXT10 TEXT10"@1234567.example.com\","
@@ -155,7 +140,8 @@ static struct {
 	},
 	{ .input = {
 		TEST_COMMON_INPUT,
-		.hdr_from = TEXT100"x <"TEXT50 TEXT10 TEXT10 TEXT10"@12345678.example.com>",
+		.hdr_from_address = TEXT50 TEXT10 TEXT10 TEXT10"@12345678.example.com",
+		.hdr_from_display_name = TEXT100"x",
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
 		"\"from-email\":\""TEXT50 TEXT10 TEXT10 TEXT10"@12345678.example.co"UNICODE_HORIZONTAL_ELLIPSIS_CHAR_UTF8"\","

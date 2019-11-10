@@ -11,7 +11,8 @@ struct webpush_message_input {
 	uint32_t uid;
 	time_t date;
 
-	const char *hdr_from;
+	const char *hdr_from_address;
+	const char *hdr_from_display_name;
 	const char *hdr_subject;
 	const char *hdr_message_id;
 	const char *chat_group_id;
