@@ -78,8 +78,8 @@ static struct {
 		.hdr_from = "P\xC3\xA4ivi Smith <p\xC3\xA4ivi@example.com>",
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
-		"\"from-email\":\"p\\u00e4ivi@example.com\","
-		"\"from-name\":\"P\\u00e4ivi Smith\"}"
+		"\"from-email\":\"p\xC3\xA4ivi@example.com\","
+		"\"from-name\":\"P\xC3\xA4ivi Smith\"}"
 	},
 	/* Encoded UTF-8 in From display-name */
 	{ .input = {
@@ -88,7 +88,7 @@ static struct {
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
 		"\"from-email\":\"paivi@example.com\","
-		"\"from-name\":\"P\\u00e4ivi Smith\"}"
+		"\"from-name\":\"P\xC3\xA4ivi Smith\"}"
 	},
 
 	/* Encoded UTF-8 in subject */
@@ -97,22 +97,22 @@ static struct {
 		.hdr_subject = "=?UTF-8?Q?P=C3=A4?=ivi Smith",
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
-		"\"subject\":\"P\\u00e4ivi Smith\"}"
+		"\"subject\":\"P\xC3\xA4ivi Smith\"}"
 	},
 	/* Encoded UTF-8 in subject getting truncated */
 	{ .input = {
 		TEST_COMMON_INPUT,
-		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"12 =?UTF-8?Q?P=C3=A4?=ivi",
+		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"123456 =?UTF-8?Q?P=C3=A4?=ivi",
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
-		"\"subject\":\""TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"12 P\\u00e4"UNICODE_HORIZONTAL_ELLIPSIS_CHAR_UTF8"\"}"
+		"\"subject\":\""TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"123456 P\xC3\xA4"UNICODE_HORIZONTAL_ELLIPSIS_CHAR_UTF8"\"}"
 	},
 	{ .input = {
 		TEST_COMMON_INPUT,
-		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"123 =?UTF-8?Q?P=C3=A4?=ivi",
+		.hdr_subject = TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"1234567 =?UTF-8?Q?P=C3=A4?=ivi",
 	  },
 	  .output = TEST_COMMON_OUTPUT_PREFIX
-		"\"subject\":\""TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"123 P"UNICODE_HORIZONTAL_ELLIPSIS_CHAR_UTF8"\"}"
+		"\"subject\":\""TEXT50 TEXT10 TEXT10 TEXT10 TEXT10"1234567 P"UNICODE_HORIZONTAL_ELLIPSIS_CHAR_UTF8"\"}"
 	},
 	{ .input = {
 		TEST_COMMON_INPUT,
