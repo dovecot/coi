@@ -22,6 +22,10 @@ struct webpush_notify_config {
 	unsigned int http_timeout_msecs;
 	char *http_rawlog_dir;
 
+	struct http_url *proxy_url;
+	const char *proxy_username;
+	const char *proxy_password;
+
 	struct webpush_notify_cache cache;
 
 	bool padding:1;

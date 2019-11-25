@@ -9,6 +9,7 @@
 #include "module-context.h"
 #include "message-size.h"
 #include "http-client.h"
+#include "http-url.h"
 #include "dcrypt.h"
 
 #include "push-notification-plugin.h"
@@ -102,6 +103,20 @@ webpush_notify_init(struct push_notification_driver_config *config,
 					   "expected yes or no", tmp);
 		return -1;
 	}
+
+	tmp = hash_table_lookup(config->config, (const char *)"proxy_url");
+	if (tmp != NULL && http_url_parse(tmp, NULL, 0, pool,
+	                                  &dconfig->proxy_url, &error) < 0) {
+		event_unref(&dconfig->event);
+		*error_r = t_strdup_printf("Failed to parse OX proxy_url %s: %s",
+			tmp, error);
+		return -1;
+	}
+
+	dconfig->proxy_username = p_strdup(pool,
+		hash_table_lookup(config->config, (const char *)"proxy_username"));
+	dconfig->proxy_password = p_strdup(pool,
+		hash_table_lookup(config->config, (const char *)"proxy_password"));
 
 	if (webpush_global == NULL) {
 		webpush_global = i_new(struct webpush_notify_global, 1);

@@ -50,6 +50,10 @@ webpush_send_global_init(struct mail_user *user,
 	http_set.max_attempts = config->http_max_retries+1;
 	http_set.request_timeout_msecs = config->http_timeout_msecs;
 	http_set.event_parent = user->event;
+	http_set.proxy_url = config->proxy_url;
+	http_set.proxy_username = config->proxy_username;
+	http_set.proxy_password = config->proxy_password;
+
 	i_zero(&ssl_set);
 	mail_user_init_ssl_client_settings(user, &ssl_set);
 	http_set.ssl = &ssl_set;
