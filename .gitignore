@@ -5,6 +5,9 @@ Makefile.in
 *.la
 .deps
 .libs
+.idea
+.directory
+compile_commands.json
 
 /configure
 /config.guess
