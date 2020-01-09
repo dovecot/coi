@@ -289,6 +289,12 @@ webpush_notify_process_msg(struct push_notification_driver_txn *dtxn,
 	webpush_data = push_notification_txn_msg_get_eventdata(msg, event_webpush.name);
 	i_assert(webpush_data != NULL);
 
+	const char *ignoring_mdn_header = "multipart/report";
+	if (webpush_data->hdr_content_type != NULL &&
+	    strncmp(webpush_data->hdr_content_type, ignoring_mdn_header,
+	            strlen(ignoring_mdn_header)) == 0)
+		return;
+
 	if (strlen(msg->mailbox) > WEBPUSH_FOLDER_MAX_LEN) {
 		/* Don't send the push-notification at all if the folder name
 		   takes up too much space. There's no point in truncating the
