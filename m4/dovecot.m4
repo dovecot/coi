@@ -1,12 +1,12 @@
 dnl dovecot.m4 - Check presence of dovecot -*-Autoconf-*-
 dnl
-dnl   Copyright (C) 2010 Dennis Schridded
+dnl   Copyright (C) 2010 Dennis Schridde
 dnl
 dnl This file is free software; the authors give
 dnl unlimited permission to copy and/or distribute it, with or without
 dnl modifications, as long as this notice is preserved.
 
-# serial 28
+# serial 30
 
 dnl
 dnl Check for support for D_FORTIFY_SOURCE=2
@@ -196,12 +196,22 @@ dnl Check for support for Retpoline
 dnl
 
 AC_DEFUN([AC_CC_RETPOLINE],[
+    AC_ARG_WITH(retpoline,
+       AS_HELP_STRING([--with-retpoline=<choice>], [Retpoline migitation choice (default: keep)]),
+            with_retpoline=$withval,
+            with_retpoline=keep)
+
     AC_REQUIRE([gl_UNKNOWN_WARNINGS_ARE_ERRORS])
     AS_IF([test "$enable_hardening" = yes], [
       case "$host" in
         *)
-          gl_COMPILER_OPTION_IF([-mfunction-return=thunk -mindirect-branch=thunk], [
-            CFLAGS="$CFLAGS -mfunction-return=thunk -mindirect-branch=thunk"
+          gl_COMPILER_OPTION_IF([-mfunction-return=$with_retpoline],
+            [CFLAGS="$CFLAGS -mfunction-return=$with_retpoline"],
+            [],
+            [AC_LANG_PROGRAM()]
+          )
+          gl_COMPILER_OPTION_IF([-mindirect-branch=$with_retpoline], [
+            CFLAGS="$CFLAGS -mindirect-branch=$with_retpoline"
             ],
             [],
             [AC_LANG_PROGRAM()]
@@ -236,8 +246,8 @@ AC_DEFUN([AC_CC_F_STACK_PROTECTOR],[
 AC_DEFUN([DC_DOVECOT_MODULEDIR],[
 	AC_ARG_WITH(moduledir,
 	[  --with-moduledir=DIR    Base directory for dynamically loadable modules],
-		moduledir="$withval",
-		moduledir=$libdir/dovecot
+		[moduledir="$withval"],
+		[moduledir="$dovecot_moduledir"]
 	)
 	AC_SUBST(moduledir)
 ])
@@ -289,9 +299,9 @@ else
   trap "rm -f \$test_out" 0 1 2 3 15
   supp_path="\$top_srcdir/run-test-valgrind.supp"
   if test -r "\$supp_path"; then
-    valgrind -q \$trace_children --leak-check=full --suppressions="\$supp_path" --log-file=\$test_out \$noundef \$[*]
+    valgrind -q \$trace_children --leak-check=full --gen-suppressions=all --suppressions="\$supp_path" --log-file=\$test_out \$noundef \$[*]
   else
-    valgrind -q \$trace_children --leak-check=full --log-file=\$test_out \$noundef \$[*]
+    valgrind -q \$trace_children --leak-check=full --gen-suppressions=all --log-file=\$test_out \$noundef \$[*]
   fi
   ret=\$?
   if test -s \$test_out; then
