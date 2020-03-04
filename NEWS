@@ -1,0 +1,4 @@
+v2.3.10 2020-03-06  Aki Tuomi <aki.tuomi@open-xchange.com>
+
+	+ webpush: Add support for proxy.
+	- webpush: Avoid sending MDN notifications by webpush.
