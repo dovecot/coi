@@ -1,4 +1,4 @@
-AC_INIT([Dovecot COI], [v2.4.devel], [info@dovecot.fi], [dovecot-coi])
+AC_INIT([Dovecot COI], [2.3.10], [info@dovecot.fi], [dovecot-2.3-coi])
 AC_CONFIG_AUX_DIR([.])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([m4])
