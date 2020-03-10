@@ -22,7 +22,7 @@ lib30_webpush_plugin_la_SOURCES = \
 lib30_webpush_plugin_la_LIBADD = \
 	$(top_builddir)/src/lib-coi/libdovecot-coi.la
 
-pkginc_libdir=$(pkgincludedir)
+pkginc_libdir=$(dovecot_pkgincludedir)
 pkginc_lib_HEADERS = \
 	webpush-message.h \
 	webpush-notify.h \
