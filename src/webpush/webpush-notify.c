@@ -272,6 +272,20 @@ webpush_notify_enforce_subscription_limit(struct mail_user *user,
 	return 0;
 }
 
+static bool
+webpush_notify_from_address_excluded(const struct webpush_subscription *subscription,
+				     const struct webpush_message_input *input)
+{
+	if (input->hdr_from_address == NULL)
+		return FALSE;
+
+	for (unsigned int i = 0; i < subscription->excluded_from_addr_count; i++) {
+		if (strcmp(subscription->excluded_from_addr[i], input->hdr_from_address) == 0)
+			return TRUE;
+	}
+	return FALSE;
+}
+
 static void
 webpush_notify_process_msg(struct push_notification_driver_txn *dtxn,
 			   struct push_notification_txn_msg *msg)
@@ -327,6 +341,8 @@ webpush_notify_process_msg(struct push_notification_driver_txn *dtxn,
 
 	/* check if msgtype matches wanted subscriptions */
 	array_foreach(&cache->subscriptions, subscription) {
+		if (webpush_notify_from_address_excluded(subscription, &input))
+			continue;
 		if (!webpush_notify_subscription_want(subscription, messagenew))
 			continue;
 		(void)webpush_send(user, subscription, cache->vapid_key,
