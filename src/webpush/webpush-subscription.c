@@ -101,6 +101,7 @@ static void webpush_json_append_comma_if_needed(string_t *str)
 {
 	i_assert(str_len(str) > 0);
 	switch (str_data(str)[str_len(str)-1]) {
+	case '[':
 	case '{':
 	case ',':
 		break;
@@ -145,6 +146,18 @@ webpush_subscription_to_string(const struct webpush_subscription *subscription,
 	if (subscription->msgtype != WEBPUSH_SUBSCRIPTION_MSGTYPE_UNKNOWN) {
 		webpush_append_keyvalue(str, "msgtype",
 			webpush_subscription_msgtype_to_string(subscription->msgtype));
+	}
+
+	if (subscription->excluded_from_addr_count > 0) {
+		webpush_json_append_comma_if_needed(str);
+		str_append(str, "\"exclude_from\": [");
+		for (unsigned int i = 0; i < subscription->excluded_from_addr_count; i++) {
+			webpush_json_append_comma_if_needed(str);
+			str_append_c(str, '"');
+			json_append_escaped(str, subscription->excluded_from_addr[i]);
+			str_append_c(str, '"');
+		}
+		str_append_c(str, ']');
 	}
 
 	webpush_json_append_comma_if_needed(str);

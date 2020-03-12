@@ -76,6 +76,33 @@ static struct {
 	{ .input = "{ }", .success = TRUE },
 	{ .input = "{ \"foo\": \"bar\" }", .success = TRUE },
 
+	/* excluded_from_addr: keep these before the resource keys in this order. */
+	{ .input = "{ \"exclude_from\": null }", .success = FALSE },
+	{ .input = "{ \"msgtype\": \"any\", \"exclude_from\": [ ] }", .success = TRUE,
+		.subscription = {
+			.excluded_from_addr_count = 0,
+			.excluded_from_addr = (const char *[]) {},
+			.msgtype = WEBPUSH_SUBSCRIPTION_MSGTYPE_ANY
+		},
+	},
+	{ .input = "{ \"msgtype\": \"any\",  \"exclude_from\": [ \"donot@notify.com\" ] }",
+		.success = TRUE,
+		.subscription = {
+			.excluded_from_addr_count = 1,
+			.excluded_from_addr = (const char *[]) {"donot@notify.com"},
+			.msgtype = WEBPUSH_SUBSCRIPTION_MSGTYPE_ANY
+		},
+	},
+	{ .input = "{ \"msgtype\": \"any\",  \"exclude_from\": ["
+		     "\"donot@notify.com\", \"aliasfordonot@notify.com\" ] }",
+		.success = TRUE,
+		.subscription = {
+			.excluded_from_addr_count = 2,
+			.excluded_from_addr = (const char *[]) {"donot@notify.com","aliasfordonot@notify.com"},
+			.msgtype = WEBPUSH_SUBSCRIPTION_MSGTYPE_ANY
+		},
+	},
+
 	/* resource_keys: keep this the last. The test code writes the
 	   subscription here, since it doesn't seem to be possible otherwise. */
 	{ .input = "{ \"resource\": { \"keys\": { \"p256dh\": \"p256dh-key\", \"auth\": \"auth-key\" } } }",
@@ -106,6 +133,16 @@ webpush_subscription_equals(const struct webpush_subscription *s1,
 		for (i = 0; i < I_MIN(s1_count, s2_count); i++) {
 			test_assert_strcmp(s1_keys[i].key, s2_keys[i].key);
 			test_assert_strcmp(s1_keys[i].value, s2_keys[i].value);
+		}
+	}
+	if (s1->excluded_from_addr_count == 0)
+		test_assert(s2->excluded_from_addr_count == 0);
+	else {
+		test_assert(s1->excluded_from_addr_count == s2->excluded_from_addr_count);
+		for (unsigned int i = 0; i < I_MIN(s1->excluded_from_addr_count,
+						   s2->excluded_from_addr_count);
+						   i++) {
+			test_assert_strcmp(s1->excluded_from_addr[i], s2->excluded_from_addr[i]);
 		}
 	}
 

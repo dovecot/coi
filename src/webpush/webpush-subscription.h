@@ -33,6 +33,8 @@ struct webpush_subscription {
 
 	const char *client_name;
 	const char *device_name;
+	const char *const *excluded_from_addr;
+	unsigned int excluded_from_addr_count;
 	enum webpush_subscription_msgtype msgtype;
 
 	const char *resource_endpoint;

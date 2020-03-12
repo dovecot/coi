@@ -11,6 +11,7 @@
 
 #define WEBPUSH_VALUE_MAX_LENGTH 1024
 #define WEBPUSH_MAX_KEYS_COUNT 2
+#define WEBPUSH_MAX_EXCLUDE_FROM_COUNT 10
 
 static const char *webpush_subscription_msgtype_strings[] = {
 	[WEBPUSH_SUBSCRIPTION_MSGTYPE_ANY] = "any",
@@ -160,6 +161,44 @@ webpush_subscription_parse_resource(struct json_parser *parser, pool_t pool,
 }
 
 static bool
+webpush_subscription_parse_exclude_from(struct json_parser *parser, pool_t pool,
+					struct webpush_subscription *subscription_r,
+					const char **error_r)
+{
+	ARRAY_TYPE(const_string) addresses;
+	const char *key, *value;
+	enum json_type type;
+
+	if (json_parse_next(parser, &type, &key) <= 0 ||
+	    type != JSON_TYPE_ARRAY) {
+		*error_r = "exclude_from: Expected array";
+		return FALSE;
+	}
+
+	t_array_init(&addresses, 2);
+	while (json_parse_next(parser, &type, &value) > 0) {
+		if (type == JSON_TYPE_ARRAY_END) {
+			subscription_r->excluded_from_addr =
+				array_get(&addresses, &subscription_r->excluded_from_addr_count);
+			return TRUE;
+		}
+		if (type != JSON_TYPE_STRING) {
+			*error_r = "exclude_from: Expected string";
+			return FALSE;
+		}
+		if (array_count(&addresses) >= WEBPUSH_MAX_EXCLUDE_FROM_COUNT) {
+			*error_r = "exclude_from: Too many excluded from addresses";
+			return FALSE;
+		}
+		if (!webpush_subscription_get_string(value, pool, &value, error_r))
+			return FALSE;
+		array_push_back(&addresses, &value);
+	}
+	*error_r = "exclude_from: Expected array-end";
+	return FALSE;
+}
+
+static bool
 webpush_subscription_parse_root(struct json_parser *parser, pool_t pool,
 				struct webpush_subscription *subscription_r,
 				const char **error_r)
@@ -192,6 +231,10 @@ webpush_subscription_parse_root(struct json_parser *parser, pool_t pool,
 			parse_type = PARSE_CREATE_TIME;
 		else if (strcmp(key, "resource") == 0) {
 			if (!webpush_subscription_parse_resource(parser, pool, subscription_r, error_r))
+				return FALSE;
+			continue;
+		} else if (strcmp(key, "exclude_from") == 0) {
+			if (!webpush_subscription_parse_exclude_from(parser, pool, subscription_r, error_r))
 				return FALSE;
 			continue;
 		} else {
