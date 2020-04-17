@@ -175,7 +175,7 @@ webpush_subscription_parse_exclude_from(struct json_parser *parser, pool_t pool,
 		return FALSE;
 	}
 
-	t_array_init(&addresses, 2);
+	p_array_init(&addresses, pool, 2);
 	while (json_parse_next(parser, &type, &value) > 0) {
 		if (type == JSON_TYPE_ARRAY_END) {
 			subscription_r->excluded_from_addr =
