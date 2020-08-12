@@ -1,3 +1,10 @@
+v2.3.11 2020-08-12  Aki Tuomi <aki.tuomi@open-xchange.com>
+
+	+ webpush: Allow specifying a list of from addresses to not be notified
+	  if any of these match the messages from address. The list can be set
+	  via an optional "exclude_from" : [ "address1", "address2", ... ] field
+	  in the subscription.
+
 v2.3.10 2020-03-06  Aki Tuomi <aki.tuomi@open-xchange.com>
 
 	+ webpush: Add support for proxy.
